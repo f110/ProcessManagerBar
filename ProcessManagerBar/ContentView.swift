@@ -47,7 +47,7 @@ struct ContentView: View {
 
             // Actions
             HStack {
-                Button("再起動") {
+                Button("全て再起動") {
                     supervisor.restartNeedingRestart()
                 }
                 .keyboardShortcut("r", modifiers: [.command])
@@ -99,6 +99,15 @@ struct ProcessRowView: View {
                 .foregroundColor(stateColor)
                 .font(.system(size: 12))
                 .help(stateTooltip)
+            Button {
+                process.restart()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .disabled(process.state == .stopped)
+            .help("再起動")
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)

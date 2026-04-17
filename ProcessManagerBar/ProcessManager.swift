@@ -17,6 +17,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     private var process: Process?
     private var logFileHandle: FileHandle?
     private var eventStream: FSEventStreamRef?
+    private var isRestarting = false
 
     private static let ignoredDirNames: Set<String> = [
         ".git", "node_modules", "vendor", ".build", "__pycache__", ".svn", ".hg",
@@ -53,13 +54,25 @@ class ManagedProcess: ObservableObject, Identifiable {
             }
         }
 
-        proc.terminationHandler = { [weak self] process in
+        proc.terminationHandler = { [weak self] terminatedProcess in
             DispatchQueue.main.async {
                 guard let self = self else { return }
+                if let handle = self.logFileHandle {
+                    try? handle.close()
+                    self.logFileHandle = nil
+                }
+                self.process = nil
+
+                if self.isRestarting {
+                    self.isRestarting = false
+                    self.state = .stopped
+                    self.start()
+                    return
+                }
                 if self.state != .needsRestart {
                     self.state = .stopped
                 }
-                if process.terminationReason == .uncaughtSignal || process.terminationStatus != 0 {
+                if terminatedProcess.terminationReason == .uncaughtSignal || terminatedProcess.terminationStatus != 0 {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
                         guard let self = self, self.state == .stopped else { return }
                         self.start()
@@ -81,22 +94,38 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     func stop() {
         stopFileWatching()
-        if let handle = logFileHandle {
-            try? handle.close()
-            logFileHandle = nil
-        }
         guard let proc = process, proc.isRunning else {
             state = .stopped
             return
         }
-        proc.terminate()
-        process = nil
-        state = .stopped
+        terminateProcess(proc)
     }
 
     func restart() {
-        stop()
-        start()
+        stopFileWatching()
+        guard let proc = process, proc.isRunning else {
+            process = nil
+            start()
+            return
+        }
+        isRestarting = true
+        terminateProcess(proc)
+        // terminationHandler will call start() when process exits
+    }
+
+    private func terminateProcess(_ proc: Process) {
+        let pid = proc.processIdentifier
+        // Send SIGTERM to the entire process group
+        kill(-pid, SIGTERM)
+        // Also send directly to the process itself
+        proc.terminate()
+        // If still running after 3 seconds, force kill
+        DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) {
+            if proc.isRunning {
+                kill(-pid, SIGKILL)
+                proc.waitUntilExit()
+            }
+        }
     }
 
     func markNeedsRestart() {
