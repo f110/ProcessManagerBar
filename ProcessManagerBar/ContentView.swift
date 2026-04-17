@@ -73,6 +73,14 @@ struct ContentView: View {
                 .keyboardShortcut("l", modifiers: [.command])
                 .controlSize(.small)
 
+                Button {
+                    LogWindowController.shared.show(supervisor: supervisor)
+                } label: {
+                    Text("ログ")
+                        .font(.system(size: 12))
+                }
+                .controlSize(.small)
+
                 Spacer()
 
                 Button {

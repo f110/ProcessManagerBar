@@ -13,9 +13,12 @@ class ManagedProcess: ObservableObject, Identifiable {
     var id: String { config.name }
 
     @Published var state: ProcessState = .stopped
+    @Published var logOutput: String = ""
 
     private var process: Process?
     private var logFileHandle: FileHandle?
+    private var stdoutPipe: Pipe?
+    private var stderrPipe: Pipe?
     private var eventStream: FSEventStreamRef?
     private var isRestarting = false
 
@@ -36,27 +39,47 @@ class ManagedProcess: ObservableObject, Identifiable {
         proc.arguments = ["-l", "-c", config.command]
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
 
+        // Set up log file if configured
         if let logPath = config.logFile {
             let expandedPath = NSString(string: logPath).expandingTildeInPath
             let logURL = URL(fileURLWithPath: expandedPath)
-            // Create parent directory if needed
             try? FileManager.default.createDirectory(
                 at: logURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            // Create or truncate the log file
             FileManager.default.createFile(atPath: expandedPath, contents: nil)
             if let handle = FileHandle(forWritingAtPath: expandedPath) {
                 handle.seekToEndOfFile()
                 self.logFileHandle = handle
-                proc.standardOutput = handle
-                proc.standardError = handle
             }
         }
+
+        // Capture stdout and stderr via pipes
+        let outPipe = Pipe()
+        let errPipe = Pipe()
+        self.stdoutPipe = outPipe
+        self.stderrPipe = errPipe
+        proc.standardOutput = outPipe
+        proc.standardError = errPipe
+
+        let readHandler: (FileHandle) -> Void = { [weak self] handle in
+            let data = handle.availableData
+            guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+            DispatchQueue.main.async {
+                self?.logOutput.append(text)
+            }
+            self?.logFileHandle?.write(data)
+        }
+        outPipe.fileHandleForReading.readabilityHandler = readHandler
+        errPipe.fileHandleForReading.readabilityHandler = readHandler
 
         proc.terminationHandler = { [weak self] terminatedProcess in
             DispatchQueue.main.async {
                 guard let self = self else { return }
+                self.stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+                self.stderrPipe?.fileHandleForReading.readabilityHandler = nil
+                self.stdoutPipe = nil
+                self.stderrPipe = nil
                 if let handle = self.logFileHandle {
                     try? handle.close()
                     self.logFileHandle = nil
