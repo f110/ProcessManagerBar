@@ -5,8 +5,14 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
     var name: String
     var command: String
     var dir: String
+    var logFile: String?
 
     var id: String { name }
+
+    enum CodingKeys: String, CodingKey {
+        case name, command, dir
+        case logFile = "log_file"
+    }
 }
 
 struct Configuration: Codable {

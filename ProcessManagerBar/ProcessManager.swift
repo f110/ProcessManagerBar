@@ -15,6 +15,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     @Published var state: ProcessState = .stopped
 
     private var process: Process?
+    private var logFileHandle: FileHandle?
     private var eventStream: FSEventStreamRef?
 
     private static let ignoredDirNames: Set<String> = [
@@ -33,6 +34,25 @@ class ManagedProcess: ObservableObject, Identifiable {
         proc.executableURL = URL(fileURLWithPath: shell)
         proc.arguments = ["-l", "-c", config.command]
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
+
+        if let logPath = config.logFile {
+            let expandedPath = NSString(string: logPath).expandingTildeInPath
+            let logURL = URL(fileURLWithPath: expandedPath)
+            // Create parent directory if needed
+            try? FileManager.default.createDirectory(
+                at: logURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            // Create or truncate the log file
+            FileManager.default.createFile(atPath: expandedPath, contents: nil)
+            if let handle = FileHandle(forWritingAtPath: expandedPath) {
+                handle.seekToEndOfFile()
+                self.logFileHandle = handle
+                proc.standardOutput = handle
+                proc.standardError = handle
+            }
+        }
+
         proc.terminationHandler = { [weak self] process in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -61,6 +81,10 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     func stop() {
         stopFileWatching()
+        if let handle = logFileHandle {
+            try? handle.close()
+            logFileHandle = nil
+        }
         guard let proc = process, proc.isRunning else {
             state = .stopped
             return
