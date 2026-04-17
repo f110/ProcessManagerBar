@@ -95,9 +95,10 @@ struct ProcessRowView: View {
             Text(process.config.name)
                 .lineLimit(1)
             Spacer()
-            Text(stateLabel)
-                .font(.caption)
-                .foregroundColor(.secondary)
+            Image(systemName: stateIcon)
+                .foregroundColor(stateColor)
+                .font(.system(size: 12))
+                .help(stateTooltip)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 4)
@@ -117,7 +118,15 @@ struct ProcessRowView: View {
         }
     }
 
-    private var stateLabel: String {
+    private var stateIcon: String {
+        switch process.state {
+        case .stopped: return "stop.circle.fill"
+        case .running: return "checkmark.circle.fill"
+        case .needsRestart: return "arrow.clockwise.circle.fill"
+        }
+    }
+
+    private var stateTooltip: String {
         switch process.state {
         case .stopped: return "停止"
         case .running: return "実行中"
