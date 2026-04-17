@@ -220,7 +220,7 @@ class ManagedProcess: ObservableObject, Identifiable {
         guard let stream = stream else { return }
         self.eventStream = stream
 
-        FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+        FSEventStreamSetDispatchQueue(stream, DispatchQueue.main)
         FSEventStreamStart(stream)
     }
 
