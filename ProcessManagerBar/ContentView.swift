@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @ObservedObject var supervisor: ProcessSupervisor
-    @State private var importerPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,15 +18,7 @@ struct ContentView: View {
                 }
                 Spacer()
                 Button("開く") {
-                    importerPresented = true
-                }
-                .fileImporter(
-                    isPresented: $importerPresented,
-                    allowedContentTypes: [UTType.yaml, UTType(filenameExtension: "yml") ?? .yaml]
-                ) { result in
-                    if case .success(let url) = result {
-                        supervisor.configFileURL = url
-                    }
+                    openFileDialog()
                 }
             }
             .padding(.horizontal, 12)
@@ -79,6 +70,17 @@ struct ContentView: View {
             .padding(.vertical, 8)
         }
         .frame(width: 320)
+    }
+
+    private func openFileDialog() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [UTType.yaml, UTType(filenameExtension: "yml") ?? .yaml]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.level = .floating
+        if panel.runModal() == .OK, let url = panel.url {
+            supervisor.configFileURL = url
+        }
     }
 }
 
