@@ -26,6 +26,10 @@ struct ContentView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+            
+            Divider()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
 
             // Process list
             if supervisor.processes.isEmpty {
