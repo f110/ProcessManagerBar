@@ -29,8 +29,9 @@ class ManagedProcess: ObservableObject, Identifiable {
         guard state != .running else { return }
 
         let proc = Process()
-        proc.executableURL = URL(fileURLWithPath: "/bin/sh")
-        proc.arguments = ["-c", config.command]
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        proc.executableURL = URL(fileURLWithPath: shell)
+        proc.arguments = ["-l", "-c", config.command]
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
         proc.terminationHandler = { [weak self] process in
             DispatchQueue.main.async {
