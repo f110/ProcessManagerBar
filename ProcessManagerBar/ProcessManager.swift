@@ -31,6 +31,7 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     @Published var state: ProcessState = .stopped
     @Published var logOutput: String = ""
+    let jsonLogFormatter: JsonLogFormatter = JsonLogFormatter()
 
     private var process: Process?
     private var logFileHandle: FileHandle?

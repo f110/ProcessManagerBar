@@ -54,7 +54,7 @@ struct LogWindowView: View {
                 if let proc = selectedProcess {
                     LogContentView(
                         logOutput: proc.logOutput,
-                        jsonLog: proc.config.jsonLog ?? false,
+                        jsonLogFormatter: (proc.config.jsonLog ?? false) ? proc.jsonLogFormatter : nil,
                         searchText: searchText,
                         searchMatchIndex: searchMatchIndex
                     )
@@ -182,7 +182,7 @@ struct SearchBarView: View {
 
 struct LogContentView: View {
     let logOutput: String
-    let jsonLog: Bool
+    let jsonLogFormatter: JsonLogFormatter?
     let searchText: String
     let searchMatchIndex: Int
 
@@ -192,7 +192,7 @@ struct LogContentView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     let lines = logOutput.components(separatedBy: "\n")
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                        let displayLine = jsonLog ? JsonLogFormatter.format(line) : line
+                        let displayLine = jsonLogFormatter?.format(line) ?? line
                         LogLineView(
                             line: displayLine,
                             lineNumber: index + 1,
@@ -315,15 +315,16 @@ struct LogLineView: View {
     }
 }
 
-enum JsonLogFormatter {
-    private static let timestampKeys: Set<String> = ["time", "timestamp", "ts", "t"]
-    private static let levelKeys: Set<String> = ["level", "lvl", "severity"]
-    private static let messageKeys: Set<String> = ["msg", "message"]
-    private static let callerKeys: Set<String> = ["caller", "source"]
-    private static let errorKeys: Set<String> = ["error", "err"]
-    private static let specialKeys: Set<String> = timestampKeys.union(levelKeys).union(messageKeys).union(callerKeys).union(errorKeys)
+class JsonLogFormatter {
+    private let timestampKeys: Set<String> = ["time", "timestamp", "ts", "t"]
+    private let levelKeys: Set<String> = ["level", "lvl", "severity"]
+    private let messageKeys: Set<String> = ["msg", "message"]
+    private let callerKeys: Set<String> = ["caller", "source"]
+    private let errorKeys: Set<String> = ["error", "err"]
 
-    static func format(_ line: String) -> String {
+    private var cachedTimestampParser: TimestampParser?
+
+    func format(_ line: String) -> String {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
@@ -334,42 +335,42 @@ enum JsonLogFormatter {
         var remaining = obj
 
         // Extract special fields
-        let timestamp = extractFirst(from: &remaining, keys: timestampKeys)
-        let level = extractFirst(from: &remaining, keys: levelKeys)
-        let message = extractFirst(from: &remaining, keys: messageKeys)
-        let caller = extractFirst(from: &remaining, keys: callerKeys)
-        let errorVal = extractFirst(from: &remaining, keys: errorKeys)
+        let timestamp = Self.extractFirst(from: &remaining, keys: timestampKeys)
+        let level = Self.extractFirst(from: &remaining, keys: levelKeys)
+        let message = Self.extractFirst(from: &remaining, keys: messageKeys)
+        let caller = Self.extractFirst(from: &remaining, keys: callerKeys)
+        let errorVal = Self.extractFirst(from: &remaining, keys: errorKeys)
 
         var parts: [String] = []
 
         // Timestamp — formatted, no field name
         if let ts = timestamp {
-            parts.append(formatTimestamp(stringValue(ts)))
+            parts.append(formatTimestamp(Self.stringValue(ts)))
         }
 
         // Level — short label
         if let lv = level {
-            parts.append("│\(formatLevel(stringValue(lv)))│")
+            parts.append("│\(Self.formatLevel(Self.stringValue(lv)))│")
         }
 
         // Message — no field name
         if let msg = message {
-            parts.append(stringValue(msg))
+            parts.append(Self.stringValue(msg))
         }
 
         // Error field
         if let err = errorVal {
-            parts.append("error=\(stringValue(err))")
+            parts.append("error=\(Self.stringValue(err))")
         }
 
         // Remaining fields in sorted order
         for key in remaining.keys.sorted() {
-            parts.append("\(key)=\(stringValue(remaining[key]!))")
+            parts.append("\(key)=\(Self.stringValue(remaining[key]!))")
         }
 
         // Caller — at the end with arrow
         if let c = caller {
-            parts.append("→ \(stringValue(c))")
+            parts.append("→ \(Self.stringValue(c))")
         }
 
         return parts.joined(separator: " ")
@@ -397,22 +398,70 @@ enum JsonLogFormatter {
         }
     }
 
-    static func formatTimestamp(_ raw: String) -> String {
+    // MARK: - Timestamp parsing with caching
+
+    enum TimestampParser {
+        case iso8601Frac
+        case iso8601
+        case dateFormat(String)
+        case unixTimestamp
+    }
+
+    func formatTimestamp(_ raw: String) -> String {
+        // Use cached parser if available
+        if let parser = cachedTimestampParser {
+            if let result = applyParser(parser, to: raw) {
+                return result
+            }
+            // Cache miss (format changed?), fall through to detection
+        }
+
+        // Detect format and cache it
+        if let (parser, result) = detectTimestampFormat(raw) {
+            cachedTimestampParser = parser
+            return result
+        }
+        return raw
+    }
+
+    private func applyParser(_ parser: TimestampParser, to raw: String) -> String? {
+        switch parser {
+        case .iso8601Frac:
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            guard let date = fmt.date(from: raw) else { return nil }
+            return Self.formatDatePreservingFraction(raw, date: date)
+        case .iso8601:
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime]
+            guard let date = fmt.date(from: raw) else { return nil }
+            return Self.formatDate(date, includeFraction: false)
+        case .dateFormat(let pattern):
+            let df = Self.makeDateFormatter(pattern: pattern)
+            guard let date = df.date(from: raw) else { return nil }
+            return Self.formatDate(date, includeFraction: false)
+        case .unixTimestamp:
+            guard let seconds = Double(raw) else { return nil }
+            let date = Date(timeIntervalSince1970: seconds)
+            let fraction = seconds.truncatingRemainder(dividingBy: 1)
+            return Self.formatDate(date, includeFraction: fraction != 0)
+        }
+    }
+
+    private func detectTimestampFormat(_ raw: String) -> (TimestampParser, String)? {
         // RFC3339 with fractional seconds (including nanosecond precision)
         let iso8601Frac = ISO8601DateFormatter()
         iso8601Frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = iso8601Frac.date(from: raw) {
-            // Preserve original fractional digits for nano precision
-            return formatDatePreservingFraction(raw, date: date)
+            return (.iso8601Frac, Self.formatDatePreservingFraction(raw, date: date))
         }
         // RFC3339 without fractional seconds
         let iso8601 = ISO8601DateFormatter()
         iso8601.formatOptions = [.withInternetDateTime]
         if let date = iso8601.date(from: raw) {
-            return formatDate(date, includeFraction: false)
+            return (.iso8601, Self.formatDate(date, includeFraction: false))
         }
-        // RFC1123 / RFC822: "Mon, 02 Jan 2006 15:04:05 MST" or "Mon, 02 Jan 06 15:04:05 MST"
-        // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
+        // RFC1123 / RFC822 / RFC850
         let dateFormats = [
             "EEE, dd MMM yyyy HH:mm:ss zzz",   // RFC1123
             "EEE, dd MMM yyyy HH:mm:ss Z",      // RFC1123 with numeric TZ
@@ -426,38 +475,36 @@ enum JsonLogFormatter {
             "EEEE, dd-MMM-yy HH:mm:ss Z",       // RFC850 with numeric TZ
         ]
         for fmt in dateFormats {
-            let df = DateFormatter()
-            df.locale = Locale(identifier: "en_US_POSIX")
-            df.dateFormat = fmt
-            // Ensure 2-digit years are interpreted as 2000s, not 1900s
-            // 2-digit years: interpret as 2000-2099
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = TimeZone(identifier: "UTC")!
-            df.twoDigitStartDate = cal.date(from: DateComponents(year: 2000, month: 1, day: 1))
+            let df = Self.makeDateFormatter(pattern: fmt)
             if let date = df.date(from: raw) {
-                return formatDate(date, includeFraction: false)
+                return (.dateFormat(fmt), Self.formatDate(date, includeFraction: false))
             }
         }
-        // Unix timestamp (seconds, possibly with fractional)
+        // Unix timestamp
         if let seconds = Double(raw) {
             let date = Date(timeIntervalSince1970: seconds)
             let fraction = seconds.truncatingRemainder(dividingBy: 1)
-            if fraction != 0 {
-                return formatDate(date, includeFraction: true)
-            }
-            return formatDate(date, includeFraction: false)
+            return (.unixTimestamp, Self.formatDate(date, includeFraction: fraction != 0))
         }
-        return raw
+        return nil
+    }
+
+    private static func makeDateFormatter(pattern: String) -> DateFormatter {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = pattern
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        df.twoDigitStartDate = cal.date(from: DateComponents(year: 2000, month: 1, day: 1))
+        return df
     }
 
     private static func formatDatePreservingFraction(_ raw: String, date: Date) -> String {
-        // Extract fractional part from original string for full precision
         let df = DateFormatter()
         df.dateFormat = "MMM dd HH:mm:ss"
         df.locale = Locale(identifier: "en_US_POSIX")
         let base = df.string(from: date)
 
-        // Find fractional part in the original string (after seconds "ss.fraction")
         if let dotRange = raw.range(of: "\\.\\d+", options: .regularExpression) {
             let frac = String(raw[dotRange])
             return base + frac
@@ -472,7 +519,7 @@ enum JsonLogFormatter {
         return df.string(from: date)
     }
 
-    private static func stringValue(_ value: Any) -> String {
+    static func stringValue(_ value: Any) -> String {
         switch value {
         case let s as String:
             return s
