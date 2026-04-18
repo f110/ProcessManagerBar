@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 @main
 struct ProcessManagerBarApp: App {
@@ -8,11 +9,26 @@ struct ProcessManagerBarApp: App {
         MenuBarExtra {
             ContentView(supervisor: supervisor)
         } label: {
-            HStack {
-                Image(systemName: menuBarIcon)
-            }
+            menuBarImage
         }
         .menuBarExtraStyle(.window)
+    }
+
+    private var menuBarImage: some View {
+        let symbolName = menuBarIcon
+        let color: NSColor = supervisor.hasProcessesNeedingRestart ? .systemYellow : .systemGreen
+        let paletteConfig = NSImage.SymbolConfiguration(paletteColors: [color])
+        let pointConfig = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
+        let config = paletteConfig.applying(pointConfig)
+        let image: NSImage = {
+            guard let base = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil) else {
+                return NSImage()
+            }
+            let configured = base.withSymbolConfiguration(config) ?? base
+            configured.isTemplate = false
+            return configured
+        }()
+        return Image(nsImage: image)
     }
 
     private var menuBarIcon: String {
