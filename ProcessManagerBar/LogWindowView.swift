@@ -54,6 +54,7 @@ struct LogWindowView: View {
                 if let proc = selectedProcess {
                     LogContentView(
                         logOutput: proc.logOutput,
+                        jsonLog: proc.config.jsonLog ?? false,
                         searchText: searchText,
                         searchMatchIndex: searchMatchIndex
                     )
@@ -181,6 +182,7 @@ struct SearchBarView: View {
 
 struct LogContentView: View {
     let logOutput: String
+    let jsonLog: Bool
     let searchText: String
     let searchMatchIndex: Int
 
@@ -190,8 +192,9 @@ struct LogContentView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     let lines = logOutput.components(separatedBy: "\n")
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
+                        let displayLine = jsonLog ? JsonLogFormatter.format(line) : line
                         LogLineView(
-                            line: line,
+                            line: displayLine,
                             lineNumber: index + 1,
                             searchText: searchText,
                             isCurrentMatch: isLineCurrentMatch(lineIndex: index)
@@ -309,6 +312,181 @@ struct LogLineView: View {
         }
 
         return Text(attributed)
+    }
+}
+
+enum JsonLogFormatter {
+    private static let timestampKeys: Set<String> = ["time", "timestamp", "ts", "t"]
+    private static let levelKeys: Set<String> = ["level", "lvl", "severity"]
+    private static let messageKeys: Set<String> = ["msg", "message"]
+    private static let callerKeys: Set<String> = ["caller", "source"]
+    private static let errorKeys: Set<String> = ["error", "err"]
+    private static let specialKeys: Set<String> = timestampKeys.union(levelKeys).union(messageKeys).union(callerKeys).union(errorKeys)
+
+    static func format(_ line: String) -> String {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.hasPrefix("{"),
+              let data = trimmed.data(using: .utf8),
+              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return line
+        }
+
+        var remaining = obj
+
+        // Extract special fields
+        let timestamp = extractFirst(from: &remaining, keys: timestampKeys)
+        let level = extractFirst(from: &remaining, keys: levelKeys)
+        let message = extractFirst(from: &remaining, keys: messageKeys)
+        let caller = extractFirst(from: &remaining, keys: callerKeys)
+        let errorVal = extractFirst(from: &remaining, keys: errorKeys)
+
+        var parts: [String] = []
+
+        // Timestamp — formatted, no field name
+        if let ts = timestamp {
+            parts.append(formatTimestamp(stringValue(ts)))
+        }
+
+        // Level — short label
+        if let lv = level {
+            parts.append("│\(formatLevel(stringValue(lv)))│")
+        }
+
+        // Message — no field name
+        if let msg = message {
+            parts.append(stringValue(msg))
+        }
+
+        // Error field
+        if let err = errorVal {
+            parts.append("error=\(stringValue(err))")
+        }
+
+        // Remaining fields in sorted order
+        for key in remaining.keys.sorted() {
+            parts.append("\(key)=\(stringValue(remaining[key]!))")
+        }
+
+        // Caller — at the end with arrow
+        if let c = caller {
+            parts.append("→ \(stringValue(c))")
+        }
+
+        return parts.joined(separator: " ")
+    }
+
+    private static func extractFirst(from obj: inout [String: Any], keys: Set<String>) -> Any? {
+        for key in keys {
+            if let value = obj.removeValue(forKey: key) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private static func formatLevel(_ level: String) -> String {
+        switch level.lowercased() {
+        case "debug", "dbg": return "DBG"
+        case "info", "inf": return "INF"
+        case "warn", "warning", "wrn": return "WRN"
+        case "error", "err": return "ERR"
+        case "fatal", "ftl": return "FTL"
+        case "panic", "pnc": return "PNC"
+        case "trace", "trc": return "TRC"
+        default: return level.uppercased().prefix(3).padding(toLength: 3, withPad: " ", startingAt: 0)
+        }
+    }
+
+    static func formatTimestamp(_ raw: String) -> String {
+        // RFC3339 with fractional seconds (including nanosecond precision)
+        let iso8601Frac = ISO8601DateFormatter()
+        iso8601Frac.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = iso8601Frac.date(from: raw) {
+            // Preserve original fractional digits for nano precision
+            return formatDatePreservingFraction(raw, date: date)
+        }
+        // RFC3339 without fractional seconds
+        let iso8601 = ISO8601DateFormatter()
+        iso8601.formatOptions = [.withInternetDateTime]
+        if let date = iso8601.date(from: raw) {
+            return formatDate(date, includeFraction: false)
+        }
+        // RFC1123 / RFC822: "Mon, 02 Jan 2006 15:04:05 MST" or "Mon, 02 Jan 06 15:04:05 MST"
+        // RFC850: "Monday, 02-Jan-06 15:04:05 MST"
+        let dateFormats = [
+            "EEE, dd MMM yyyy HH:mm:ss zzz",   // RFC1123
+            "EEE, dd MMM yyyy HH:mm:ss Z",      // RFC1123 with numeric TZ
+            "EEE, dd MMM yy HH:mm:ss zzz",      // RFC822 with day-of-week
+            "EEE, dd MMM yy HH:mm:ss Z",        // RFC822 with day-of-week, numeric TZ
+            "dd MMM yy HH:mm Z",                 // RFC822 minimal (no day-of-week, no seconds)
+            "dd MMM yy HH:mm:ss Z",              // RFC822 no day-of-week
+            "dd MMM yy HH:mm zzz",               // RFC822 minimal with named TZ
+            "dd MMM yy HH:mm:ss zzz",            // RFC822 no day-of-week, named TZ
+            "EEEE, dd-MMM-yy HH:mm:ss zzz",     // RFC850
+            "EEEE, dd-MMM-yy HH:mm:ss Z",       // RFC850 with numeric TZ
+        ]
+        for fmt in dateFormats {
+            let df = DateFormatter()
+            df.locale = Locale(identifier: "en_US_POSIX")
+            df.dateFormat = fmt
+            // Ensure 2-digit years are interpreted as 2000s, not 1900s
+            // 2-digit years: interpret as 2000-2099
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone(identifier: "UTC")!
+            df.twoDigitStartDate = cal.date(from: DateComponents(year: 2000, month: 1, day: 1))
+            if let date = df.date(from: raw) {
+                return formatDate(date, includeFraction: false)
+            }
+        }
+        // Unix timestamp (seconds, possibly with fractional)
+        if let seconds = Double(raw) {
+            let date = Date(timeIntervalSince1970: seconds)
+            let fraction = seconds.truncatingRemainder(dividingBy: 1)
+            if fraction != 0 {
+                return formatDate(date, includeFraction: true)
+            }
+            return formatDate(date, includeFraction: false)
+        }
+        return raw
+    }
+
+    private static func formatDatePreservingFraction(_ raw: String, date: Date) -> String {
+        // Extract fractional part from original string for full precision
+        let df = DateFormatter()
+        df.dateFormat = "MMM dd HH:mm:ss"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        let base = df.string(from: date)
+
+        // Find fractional part in the original string (after seconds "ss.fraction")
+        if let dotRange = raw.range(of: "\\.\\d+", options: .regularExpression) {
+            let frac = String(raw[dotRange])
+            return base + frac
+        }
+        return base + ".000"
+    }
+
+    private static func formatDate(_ date: Date, includeFraction: Bool) -> String {
+        let df = DateFormatter()
+        df.dateFormat = includeFraction ? "MMM dd HH:mm:ss.SSS" : "MMM dd HH:mm:ss"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        return df.string(from: date)
+    }
+
+    private static func stringValue(_ value: Any) -> String {
+        switch value {
+        case let s as String:
+            return s
+        case let n as NSNumber:
+            return n.stringValue
+        case is NSNull:
+            return "null"
+        default:
+            if let data = try? JSONSerialization.data(withJSONObject: value),
+               let s = String(data: data, encoding: .utf8) {
+                return s
+            }
+            return "\(value)"
+        }
     }
 }
 
