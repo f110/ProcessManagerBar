@@ -192,9 +192,10 @@ struct LogContentView: View {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     let lines = logOutput.components(separatedBy: "\n")
                     ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                        let displayLine = jsonLogFormatter?.format(line) ?? line
+                        let result = jsonLogFormatter?.format(line)
                         LogLineView(
-                            line: displayLine,
+                            line: result?.text ?? line,
+                            logLevel: result?.level ?? .unknown,
                             lineNumber: index + 1,
                             searchText: searchText,
                             isCurrentMatch: isLineCurrentMatch(lineIndex: index)
@@ -270,6 +271,7 @@ struct LogContentView: View {
 
 struct LogLineView: View {
     let line: String
+    let logLevel: JsonLogFormatter.LogLevel
     let lineNumber: Int
     let searchText: String
     let isCurrentMatch: Bool
@@ -283,6 +285,7 @@ struct LogLineView: View {
 
             if searchText.isEmpty {
                 Text(line)
+                    .foregroundColor(levelColor)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
@@ -293,6 +296,20 @@ struct LogLineView: View {
         }
         .padding(.vertical, 1)
         .background(isCurrentMatch ? Color.yellow.opacity(0.2) : Color.clear)
+    }
+
+    // Colors chosen for white background readability
+    private var levelColor: Color {
+        switch logLevel {
+        case .warn:
+            return Color(nsColor: NSColor(red: 0.7, green: 0.5, blue: 0.0, alpha: 1.0)) // dark amber
+        case .error:
+            return Color(nsColor: NSColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1.0)) // red
+        case .fatal, .panic:
+            return Color(nsColor: NSColor(red: 0.6, green: 0.0, blue: 0.0, alpha: 1.0)) // dark red
+        default:
+            return .primary
+        }
     }
 
     private var highlightedText: Text {
@@ -324,22 +341,34 @@ class JsonLogFormatter {
 
     private var cachedTimestampParser: TimestampParser?
 
-    func format(_ line: String) -> String {
+    enum LogLevel: Equatable {
+        case trace, debug, info, warn, error, fatal, panic, unknown
+    }
+
+    struct FormatResult {
+        let text: String
+        let level: LogLevel
+    }
+
+    func format(_ line: String) -> FormatResult {
         let trimmed = line.trimmingCharacters(in: .whitespaces)
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return line
+            return FormatResult(text: line, level: .unknown)
         }
 
         var remaining = obj
 
         // Extract special fields
         let timestamp = Self.extractFirst(from: &remaining, keys: timestampKeys)
-        let level = Self.extractFirst(from: &remaining, keys: levelKeys)
+        let levelVal = Self.extractFirst(from: &remaining, keys: levelKeys)
         let message = Self.extractFirst(from: &remaining, keys: messageKeys)
         let caller = Self.extractFirst(from: &remaining, keys: callerKeys)
         let errorVal = Self.extractFirst(from: &remaining, keys: errorKeys)
+
+        let levelStr = levelVal.map { Self.stringValue($0) } ?? ""
+        let logLevel = Self.parseLogLevel(levelStr)
 
         var parts: [String] = []
 
@@ -349,8 +378,8 @@ class JsonLogFormatter {
         }
 
         // Level — short label
-        if let lv = level {
-            parts.append("│\(Self.formatLevel(Self.stringValue(lv)))│")
+        if !levelStr.isEmpty {
+            parts.append("│\(Self.formatLevel(levelStr))│")
         }
 
         // Message — no field name
@@ -373,7 +402,20 @@ class JsonLogFormatter {
             parts.append("→ \(Self.stringValue(c))")
         }
 
-        return parts.joined(separator: " ")
+        return FormatResult(text: parts.joined(separator: " "), level: logLevel)
+    }
+
+    private static func parseLogLevel(_ level: String) -> LogLevel {
+        switch level.lowercased() {
+        case "trace", "trc": return .trace
+        case "debug", "dbg": return .debug
+        case "info", "inf": return .info
+        case "warn", "warning", "wrn": return .warn
+        case "error", "err": return .error
+        case "fatal", "ftl": return .fatal
+        case "panic", "pnc": return .panic
+        default: return .unknown
+        }
     }
 
     private static func extractFirst(from obj: inout [String: Any], keys: Set<String>) -> Any? {

@@ -113,46 +113,51 @@ class JsonLogFormatterTest: XCTestCase {
         let fmt = JsonLogFormatter()
         let line = #"{"level":"info","time":"2026-04-19T01:53:27.329+0900","caller":"simple-http-server/server.go:237","msg":"Start server","addr":":8083"}"#
         let result = fmt.format(line)
-        XCTAssertTrue(result.hasPrefix("Apr 19 01:53:27.329"))
-        XCTAssertTrue(result.contains("│INF│"))
-        XCTAssertTrue(result.contains("Start server"))
-        XCTAssertTrue(result.contains("addr=:8083"))
-        XCTAssertTrue(result.hasSuffix("→ simple-http-server/server.go:237"))
+        XCTAssertTrue(result.text.hasPrefix("Apr 19 01:53:27.329"))
+        XCTAssertTrue(result.text.contains("│INF│"))
+        XCTAssertTrue(result.text.contains("Start server"))
+        XCTAssertTrue(result.text.contains("addr=:8083"))
+        XCTAssertTrue(result.text.hasSuffix("→ simple-http-server/server.go:237"))
+        XCTAssertEqual(result.level, .info)
     }
 
     func testNonJsonLine() {
         let fmt = JsonLogFormatter()
         let line = "plain text log line"
-        XCTAssertEqual(fmt.format(line), line)
+        let result = fmt.format(line)
+        XCTAssertEqual(result.text, line)
+        XCTAssertEqual(result.level, .unknown)
     }
 
     func testJsonWithoutTimestamp() {
         let fmt = JsonLogFormatter()
         let line = #"{"level":"error","msg":"something failed","code":500}"#
         let result = fmt.format(line)
-        XCTAssertTrue(result.hasPrefix("│ERR│"))
-        XCTAssertTrue(result.contains("something failed"))
-        XCTAssertTrue(result.contains("code=500"))
+        XCTAssertTrue(result.text.hasPrefix("│ERR│"))
+        XCTAssertTrue(result.text.contains("something failed"))
+        XCTAssertTrue(result.text.contains("code=500"))
+        XCTAssertEqual(result.level, .error)
     }
 
     func testErrorField() {
         let fmt = JsonLogFormatter()
         let line = #"{"level":"error","msg":"request failed","error":"connection refused"}"#
         let result = fmt.format(line)
-        XCTAssertTrue(result.contains("error=connection refused"))
+        XCTAssertTrue(result.text.contains("error=connection refused"))
     }
 
     func testLevelFormats() {
         let fmt = JsonLogFormatter()
-        let levels: [(String, String)] = [
-            ("debug", "DBG"), ("info", "INF"), ("warn", "WRN"),
-            ("warning", "WRN"), ("error", "ERR"), ("fatal", "FTL"),
-            ("panic", "PNC"), ("trace", "TRC"),
+        let levels: [(String, String, JsonLogFormatter.LogLevel)] = [
+            ("debug", "DBG", .debug), ("info", "INF", .info), ("warn", "WRN", .warn),
+            ("warning", "WRN", .warn), ("error", "ERR", .error), ("fatal", "FTL", .fatal),
+            ("panic", "PNC", .panic), ("trace", "TRC", .trace),
         ]
-        for (input, expected) in levels {
+        for (input, expected, expectedLevel) in levels {
             let line = "{\"level\":\"\(input)\",\"msg\":\"test\"}"
             let result = fmt.format(line)
-            XCTAssertTrue(result.contains("│\(expected)│"), "Level '\(input)' should format as │\(expected)│, got: \(result)")
+            XCTAssertTrue(result.text.contains("│\(expected)│"), "Level '\(input)' should format as │\(expected)│, got: \(result.text)")
+            XCTAssertEqual(result.level, expectedLevel, "Level '\(input)' should parse as \(expectedLevel)")
         }
     }
 
@@ -160,7 +165,7 @@ class JsonLogFormatterTest: XCTestCase {
         let fmt = JsonLogFormatter()
         // Verify: timestamp, level, message, extra fields, then caller at end
         let line = #"{"caller":"main.go:10","level":"info","msg":"hello","time":"2026-04-19T01:00:00+09:00","foo":"bar"}"#
-        let result = fmt.format(line)
+        let result = fmt.format(line).text
         let tsIndex = result.range(of: "Apr 19")!.lowerBound
         let levelIndex = result.range(of: "│INF│")!.lowerBound
         let msgIndex = result.range(of: "hello")!.lowerBound
