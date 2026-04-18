@@ -79,7 +79,9 @@ class ManagedProcess: ObservableObject, Identifiable {
 
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: resolvedPath)
-        proc.arguments = Array(config.command.dropFirst())
+        proc.arguments = Array(config.command.dropFirst()).map {
+            $0.replacingOccurrences(of: "$DIR", with: config.dir)
+        }
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
 
         // Set up log file if configured
