@@ -6,10 +6,15 @@ class ConfigurationTest: XCTestCase {
         let yaml = """
         processes:
           - name: web-server
-            command: go run ./cmd/server
+            command:
+              - go
+              - run
+              - ./cmd/server
             dir: /tmp/myproject
           - name: worker
-            command: python worker.py
+            command:
+              - python
+              - worker.py
             dir: /tmp/worker
         """
 
@@ -20,10 +25,10 @@ class ConfigurationTest: XCTestCase {
         let config = try Configuration.read(from: tempFile)
         XCTAssertEqual(config.processes.count, 2)
         XCTAssertEqual(config.processes[0].name, "web-server")
-        XCTAssertEqual(config.processes[0].command, "go run ./cmd/server")
+        XCTAssertEqual(config.processes[0].command, ["go", "run", "./cmd/server"])
         XCTAssertEqual(config.processes[0].dir, "/tmp/myproject")
         XCTAssertEqual(config.processes[1].name, "worker")
-        XCTAssertEqual(config.processes[1].command, "python worker.py")
+        XCTAssertEqual(config.processes[1].command, ["python", "worker.py"])
         XCTAssertEqual(config.processes[1].dir, "/tmp/worker")
     }
 }

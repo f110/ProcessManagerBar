@@ -6,6 +6,23 @@ enum ProcessState: Equatable {
     case stopped
     case running
     case needsRestart
+    case error(String)
+
+    static func == (lhs: ProcessState, rhs: ProcessState) -> Bool {
+        switch (lhs, rhs) {
+        case (.stopped, .stopped), (.running, .running), (.needsRestart, .needsRestart):
+            return true
+        case (.error(let a), .error(let b)):
+            return a == b
+        default:
+            return false
+        }
+    }
+
+    var isError: Bool {
+        if case .error = self { return true }
+        return false
+    }
 }
 
 class ManagedProcess: ObservableObject, Identifiable {
@@ -33,10 +50,36 @@ class ManagedProcess: ObservableObject, Identifiable {
     func start() {
         guard state != .running else { return }
 
+        guard !config.command.isEmpty else {
+            state = .error("コマンドが指定されていません")
+            return
+        }
+
+        let executable = config.command[0]
+        let resolvedPath: String
+
+        if executable.contains("/") {
+            // Absolute or relative path — use as-is
+            let fullPath = executable.hasPrefix("/")
+                ? executable
+                : (config.dir as NSString).appendingPathComponent(executable)
+            guard FileManager.default.isExecutableFile(atPath: fullPath) else {
+                state = .error("実行ファイルが見つかりません: \(executable)")
+                return
+            }
+            resolvedPath = fullPath
+        } else {
+            // Look up in PATH
+            guard let found = ShellEnvironment.shared.resolveExecutable(executable) else {
+                state = .error("実行ファイルが見つかりません: \(executable)")
+                return
+            }
+            resolvedPath = found
+        }
+
         let proc = Process()
-        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
-        proc.executableURL = URL(fileURLWithPath: shell)
-        proc.arguments = ["-l", "-c", config.command]
+        proc.executableURL = URL(fileURLWithPath: resolvedPath)
+        proc.arguments = Array(config.command.dropFirst())
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
 
         // Set up log file if configured
@@ -106,12 +149,15 @@ class ManagedProcess: ObservableObject, Identifiable {
 
         do {
             try proc.run()
+            // 子プロセスをアプリと同じプロセスグループに移動する
+            let childPid = proc.processIdentifier
+            let myPgid = getpgrp()
+            setpgid(childPid, myPgid)
             self.process = proc
             state = .running
             startFileWatching()
         } catch {
-            print("Failed to start \(config.name): \(error)")
-            state = .stopped
+            state = .error("起動失敗: \(error.localizedDescription)")
         }
     }
 
@@ -133,19 +179,15 @@ class ManagedProcess: ObservableObject, Identifiable {
         }
         isRestarting = true
         terminateProcess(proc)
-        // terminationHandler will call start() when process exits
     }
 
     private func terminateProcess(_ proc: Process) {
         let pid = proc.processIdentifier
-        // Send SIGTERM to the entire process group
-        kill(-pid, SIGTERM)
-        // Also send directly to the process itself
+        kill(pid, SIGTERM)
         proc.terminate()
-        // If still running after 3 seconds, force kill
         DispatchQueue.global().asyncAfter(deadline: .now() + 3.0) {
             if proc.isRunning {
-                kill(-pid, SIGKILL)
+                kill(pid, SIGKILL)
                 proc.waitUntilExit()
             }
         }
@@ -165,7 +207,6 @@ class ManagedProcess: ObservableObject, Identifiable {
         let pathToWatch = config.dir as CFString
         let pathsToWatch = [pathToWatch] as CFArray
 
-        // Use Unmanaged to pass self as context
         var context = FSEventStreamContext(
             version: 0,
             info: Unmanaged.passUnretained(self).toOpaque(),
@@ -186,20 +227,18 @@ class ManagedProcess: ObservableObject, Identifiable {
             for i in 0..<numEvents {
                 let path = paths[i]
 
-                // Skip ignored directories
                 let components = path.split(separator: "/")
                 if components.contains(where: { ManagedProcess.ignoredDirNames.contains(String($0)) }) {
                     continue
                 }
 
-                // Skip events that are only directory-level root changes with no real content change
                 let flag = Int32(bitPattern: flags[i])
-                _ = flag  // All file/dir events trigger needsRestart
+                _ = flag
 
                 DispatchQueue.main.async {
                     process.markNeedsRestart()
                 }
-                return  // One event is enough to mark
+                return
             }
         }
 
@@ -209,7 +248,7 @@ class ManagedProcess: ObservableObject, Identifiable {
             &context,
             pathsToWatch,
             FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
-            1.0,  // 1 second latency for coalescing
+            1.0,
             UInt32(
                 kFSEventStreamCreateFlagUseCFTypes
                 | kFSEventStreamCreateFlagFileEvents
@@ -237,6 +276,60 @@ class ManagedProcess: ObservableObject, Identifiable {
     }
 }
 
+// MARK: - Shell Environment
+
+class ShellEnvironment {
+    static let shared = ShellEnvironment()
+
+    private var searchPaths: [String] = []
+
+    private init() {
+        loadPathFromLoginShell()
+    }
+
+    private func loadPathFromLoginShell() {
+        let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: shell)
+        proc.arguments = ["-l", "-c", "echo $PATH"]
+
+        let pipe = Pipe()
+        proc.standardOutput = pipe
+        proc.standardError = FileHandle.nullDevice
+
+        do {
+            try proc.run()
+            proc.waitUntilExit()
+
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let pathString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !pathString.isEmpty {
+                searchPaths = pathString.components(separatedBy: ":")
+            }
+        } catch {
+            print("Failed to load PATH from login shell: \(error)")
+        }
+
+        // Fallback if empty
+        if searchPaths.isEmpty {
+            searchPaths = ["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+        }
+    }
+
+    func resolveExecutable(_ name: String) -> String? {
+        let fm = FileManager.default
+        for dir in searchPaths {
+            let fullPath = (dir as NSString).appendingPathComponent(name)
+            if fm.isExecutableFile(atPath: fullPath) {
+                return fullPath
+            }
+        }
+        return nil
+    }
+}
+
+// MARK: - Process Supervisor
+
 class ProcessSupervisor: ObservableObject {
     @Published var processes: [ManagedProcess] = []
     @Published var configFileURL: URL? {
@@ -255,6 +348,9 @@ class ProcessSupervisor: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
+        // Trigger ShellEnvironment initialization early
+        _ = ShellEnvironment.shared
+
         if let savedPath = UserDefaults.standard.string(forKey: "configFilePath") {
             let url = URL(fileURLWithPath: savedPath)
             if FileManager.default.fileExists(atPath: savedPath) {
@@ -270,7 +366,6 @@ class ProcessSupervisor: ObservableObject {
         do {
             let config = try Configuration.read(from: url)
             let oldProcesses = processes
-            // Stop processes that are no longer in config
             for proc in oldProcesses {
                 if !config.processes.contains(where: { $0.name == proc.config.name }) {
                     proc.stop()
@@ -282,7 +377,6 @@ class ProcessSupervisor: ObservableObject {
                 if let existing = oldProcesses.first(where: { $0.config.name == procConfig.name && $0.config == procConfig }) {
                     newProcesses.append(existing)
                 } else {
-                    // Stop old version if config changed
                     oldProcesses.first(where: { $0.config.name == procConfig.name })?.stop()
                     let managed = ManagedProcess(config: procConfig)
                     newProcesses.append(managed)

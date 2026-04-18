@@ -3,7 +3,7 @@ import Yams
 
 struct ProcessConfig: Codable, Identifiable, Equatable {
     var name: String
-    var command: String
+    var command: [String]
     var dir: String
     var logFile: String?
 

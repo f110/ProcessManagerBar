@@ -124,10 +124,17 @@ struct ProcessRowView: View {
                 .font(.system(size: 13))
                 .lineLimit(1)
             Spacer()
-            Image(systemName: stateIcon)
-                .foregroundColor(stateColor)
-                .font(.system(size: 13))
-                .help(stateTooltip)
+            if case .error(let message) = process.state {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 13))
+                    .help(message)
+            } else {
+                Image(systemName: stateIcon)
+                    .foregroundColor(stateColor)
+                    .font(.system(size: 13))
+                    .help(stateTooltip)
+            }
             Button {
                 process.restart()
             } label: {
@@ -136,7 +143,7 @@ struct ProcessRowView: View {
                     .foregroundColor(.secondary)
             }
             .buttonStyle(.borderless)
-            .disabled(process.state == .stopped)
+            .disabled(process.state == .stopped || process.state.isError)
             .help("再起動")
         }
         .padding(.horizontal, 10)
@@ -161,6 +168,7 @@ struct ProcessRowView: View {
         case .stopped: return .red
         case .running: return .green
         case .needsRestart: return .yellow
+        case .error: return .orange
         }
     }
 
@@ -169,6 +177,7 @@ struct ProcessRowView: View {
         case .stopped: return "stop.circle.fill"
         case .running: return "checkmark.circle.fill"
         case .needsRestart: return "arrow.clockwise.circle.fill"
+        case .error: return "exclamationmark.triangle.fill"
         }
     }
 
@@ -177,6 +186,7 @@ struct ProcessRowView: View {
         case .stopped: return "停止"
         case .running: return "実行中"
         case .needsRestart: return "要再起動"
+        case .error(let msg): return msg
         }
     }
 }
