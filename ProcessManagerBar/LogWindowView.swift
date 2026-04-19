@@ -285,11 +285,30 @@ struct LogContentView: NSViewRepresentable {
             let displayText = formatted?.text ?? line
             let level = formatted?.level ?? .unknown
 
+            let baseOffset = result.length
             let textAttr = NSAttributedString(string: displayText, attributes: [
                 .font: monoFont,
-                .foregroundColor: levelNSColor(level),
+                .foregroundColor: NSColor.labelColor,
             ])
             result.append(textAttr)
+
+            if let levelRange = formatted?.levelNSRange, level != .unknown {
+                let adjustedRange = NSRange(location: baseOffset + levelRange.location, length: levelRange.length)
+                result.addAttribute(.foregroundColor, value: levelNSColor(level), range: adjustedRange)
+            }
+
+            if let msgRange = formatted?.messageNSRange {
+                let adjustedRange = NSRange(location: baseOffset + msgRange.location, length: msgRange.length)
+                let boldFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
+                result.addAttribute(.font, value: boldFont, range: adjustedRange)
+            }
+
+            if let keyRanges = formatted?.keyNSRanges {
+                for keyRange in keyRanges {
+                    let adjustedRange = NSRange(location: baseOffset + keyRange.location, length: keyRange.length)
+                    result.addAttribute(.foregroundColor, value: NSColor(red: 0.55, green: 0.47, blue: 0.75, alpha: 1.0), range: adjustedRange)
+                }
+            }
 
             if index < lines.count - 1 {
                 result.append(NSAttributedString(string: "\n"))
@@ -300,6 +319,8 @@ struct LogContentView: NSViewRepresentable {
 
     private func levelNSColor(_ level: JsonLogFormatter.LogLevel) -> NSColor {
         switch level {
+        case .info:
+            return NSColor(red: 0.2, green: 0.55, blue: 0.8, alpha: 1.0)
         case .warn:
             return NSColor(red: 0.7, green: 0.5, blue: 0.0, alpha: 1.0)
         case .error:
@@ -362,6 +383,9 @@ class JsonLogFormatter {
     struct FormatResult {
         let text: String
         let level: LogLevel
+        let levelNSRange: NSRange?
+        let messageNSRange: NSRange?
+        let keyNSRanges: [NSRange]
     }
 
     func format(_ line: String) -> FormatResult {
@@ -369,7 +393,7 @@ class JsonLogFormatter {
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return FormatResult(text: line, level: .unknown)
+            return FormatResult(text: line, level: .unknown, levelNSRange: nil, messageNSRange: nil, keyNSRanges: [])
         }
 
         var remaining = obj
@@ -391,23 +415,41 @@ class JsonLogFormatter {
             parts.append(formatTimestamp(Self.stringValue(ts)))
         }
 
-        // Level — short label
+        // Level — short label (track position for coloring)
+        var levelNSRange: NSRange?
         if !levelStr.isEmpty {
-            parts.append("│\(Self.formatLevel(levelStr))│")
+            let levelPart = "│\(Self.formatLevel(levelStr))│"
+            let currentText = parts.joined(separator: " ")
+            let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
+            levelNSRange = NSRange(location: startOffset, length: (levelPart as NSString).length)
+            parts.append(levelPart)
         }
 
-        // Message — no field name
+        // Message — no field name (track position for bold)
+        var messageNSRange: NSRange?
         if let msg = message {
-            parts.append(Self.stringValue(msg))
+            let msgText = Self.stringValue(msg)
+            let currentText = parts.joined(separator: " ")
+            let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
+            messageNSRange = NSRange(location: startOffset, length: (msgText as NSString).length)
+            parts.append(msgText)
         }
 
-        // Error field
+        // Error field and remaining fields — track key ranges
+        var keyNSRanges: [NSRange] = []
+
         if let err = errorVal {
+            let currentText = parts.joined(separator: " ")
+            let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
+            keyNSRanges.append(NSRange(location: startOffset, length: ("error" as NSString).length))
             parts.append("error=\(Self.stringValue(err))")
         }
 
         // Remaining fields in sorted order
         for key in remaining.keys.sorted() {
+            let currentText = parts.joined(separator: " ")
+            let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
+            keyNSRanges.append(NSRange(location: startOffset, length: (key as NSString).length))
             parts.append("\(key)=\(Self.stringValue(remaining[key]!))")
         }
 
@@ -416,7 +458,7 @@ class JsonLogFormatter {
             parts.append("→ \(Self.stringValue(c))")
         }
 
-        return FormatResult(text: parts.joined(separator: " "), level: logLevel)
+        return FormatResult(text: parts.joined(separator: " "), level: logLevel, levelNSRange: levelNSRange, messageNSRange: messageNSRange, keyNSRanges: keyNSRanges)
     }
 
     private static func parseLogLevel(_ level: String) -> LogLevel {
