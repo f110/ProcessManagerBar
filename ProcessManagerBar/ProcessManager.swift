@@ -158,7 +158,9 @@ class ManagedProcess: ObservableObject, Identifiable {
             setpgid(childPid, myPgid)
             self.process = proc
             state = .running
-            startFileWatching()
+            if config.watch ?? false {
+                startFileWatching()
+            }
         } catch {
             state = .error("起動失敗: \(error.localizedDescription)")
         }

@@ -180,155 +180,230 @@ struct SearchBarView: View {
     }
 }
 
-struct LogContentView: View {
+class LineNumberRulerView: NSRulerView {
+    private let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+
+    init(textView: NSTextView) {
+        super.init(scrollView: textView.enclosingScrollView!, orientation: .verticalRuler)
+        self.clientView = textView
+        self.ruleThickness = 40
+    }
+
+    required init(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func drawHashMarksAndLabels(in rect: NSRect) {
+        guard let textView = self.clientView as? NSTextView,
+              let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
+        let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
+
+        let text = textView.string as NSString
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: monoFont,
+            .foregroundColor: NSColor.secondaryLabelColor,
+        ]
+
+        var lineNumber = 1
+        // Count lines before visible range
+        text.enumerateSubstrings(in: NSRange(location: 0, length: visibleCharRange.location), options: [.byLines, .substringNotRequired]) { _, _, _, _ in
+            lineNumber += 1
+        }
+
+        // Draw line numbers for visible lines
+        text.enumerateSubstrings(in: visibleCharRange, options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
+            let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
+            var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+            lineRect.origin.y += textView.textContainerInset.height
+
+            let relativePoint = self.convert(lineRect.origin, from: textView)
+
+            let numStr = "\(lineNumber)" as NSString
+            let strSize = numStr.size(withAttributes: attrs)
+            let drawPoint = NSPoint(
+                x: self.ruleThickness - strSize.width - 6,
+                y: relativePoint.y + (lineRect.height - strSize.height) / 2
+            )
+            numStr.draw(at: drawPoint, withAttributes: attrs)
+            lineNumber += 1
+        }
+    }
+}
+
+struct LogContentView: NSViewRepresentable {
     let logOutput: String
     let jsonLogFormatter: JsonLogFormatter?
     let searchText: String
     let searchMatchIndex: Int
 
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    let lines = logOutput.components(separatedBy: "\n")
-                    ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
-                        let result = jsonLogFormatter?.format(line)
-                        LogLineView(
-                            line: result?.text ?? line,
-                            logLevel: result?.level ?? .unknown,
-                            lineNumber: index + 1,
-                            searchText: searchText,
-                            isCurrentMatch: isLineCurrentMatch(lineIndex: index)
-                        )
-                        .id(index)
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-            }
-            .font(.system(size: 12, design: .monospaced))
-            .background(Color(nsColor: .textBackgroundColor))
-            .onChange(of: logOutput) {
-                // Auto-scroll to bottom when new output arrives
-                let lineCount = logOutput.components(separatedBy: "\n").count
-                if lineCount > 0 && searchText.isEmpty {
-                    proxy.scrollTo(lineCount - 1, anchor: .bottom)
-                }
-            }
-            .onChange(of: searchMatchIndex) {
-                scrollToMatch(proxy: proxy)
-            }
-            .onChange(of: searchText) {
-                if !searchText.isEmpty {
-                    scrollToMatch(proxy: proxy)
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = NSTextView()
+        textView.isEditable = false
+        textView.isSelectable = true
+        textView.isRichText = true
+        textView.drawsBackground = true
+        textView.backgroundColor = .textBackgroundColor
+        textView.isHorizontallyResizable = true
+        textView.isVerticallyResizable = true
+        textView.textContainer?.widthTracksTextView = false
+        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        textView.autoresizingMask = [.width, .height]
+
+        let scrollView = NSScrollView()
+        scrollView.documentView = textView
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = true
+        scrollView.autohidesScrollers = true
+
+        // Line number ruler
+        scrollView.hasVerticalRuler = true
+        scrollView.rulersVisible = true
+        let rulerView = LineNumberRulerView(textView: textView)
+        scrollView.verticalRulerView = rulerView
+
+        // Notify ruler to redraw when text or scroll changes
+        NotificationCenter.default.addObserver(
+            forName: NSView.boundsDidChangeNotification,
+            object: scrollView.contentView,
+            queue: .main
+        ) { _ in
+            rulerView.needsDisplay = true
+        }
+        NotificationCenter.default.addObserver(
+            forName: NSText.didChangeNotification,
+            object: textView,
+            queue: .main
+        ) { _ in
+            rulerView.needsDisplay = true
+        }
+
+        context.coordinator.textView = textView
+        context.coordinator.scrollView = scrollView
+
+        return scrollView
+    }
+
+    func updateNSView(_ scrollView: NSScrollView, context: Context) {
+        let coordinator = context.coordinator
+        let textView = coordinator.textView!
+
+        let logChanged = coordinator.lastLogOutput != logOutput
+        let searchChanged = coordinator.lastSearchText != searchText || coordinator.lastSearchMatchIndex != searchMatchIndex
+
+        if logChanged {
+            coordinator.lastLogOutput = logOutput
+
+            let wasAtBottom = coordinator.isScrolledToBottom()
+
+            let attrStr = buildAttributedString()
+            textView.textStorage?.setAttributedString(attrStr)
+
+            scrollView.verticalRulerView?.needsDisplay = true
+
+            if wasAtBottom && searchText.isEmpty {
+                DispatchQueue.main.async {
+                    textView.scrollToEndOfDocument(nil)
                 }
             }
         }
+
+        if searchChanged || logChanged {
+            coordinator.lastSearchText = searchText
+            coordinator.lastSearchMatchIndex = searchMatchIndex
+            highlightSearch(in: textView)
+        }
     }
 
-    private func scrollToMatch(proxy: ScrollViewProxy) {
-        guard !searchText.isEmpty else { return }
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    class Coordinator {
+        var textView: NSTextView?
+        var scrollView: NSScrollView?
+        var lastLogOutput: String = ""
+        var lastSearchText: String = ""
+        var lastSearchMatchIndex: Int = 0
+
+        func isScrolledToBottom() -> Bool {
+            guard let scrollView = scrollView, let documentView = scrollView.documentView else { return true }
+            let visibleRect = scrollView.contentView.bounds
+            let documentHeight = documentView.frame.height
+            return visibleRect.maxY >= documentHeight - 20
+        }
+    }
+
+    private func buildAttributedString() -> NSAttributedString {
+        let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         let lines = logOutput.components(separatedBy: "\n")
-        let searchLower = searchText.lowercased()
-        var matchCount = 0
+        let result = NSMutableAttributedString()
+
         for (index, line) in lines.enumerated() {
-            let lineLower = line.lowercased()
-            var searchStart = lineLower.startIndex
-            while let range = lineLower.range(of: searchLower, range: searchStart..<lineLower.endIndex) {
-                if matchCount == searchMatchIndex {
-                    withAnimation {
-                        proxy.scrollTo(index, anchor: .center)
-                    }
-                    return
-                }
-                matchCount += 1
-                searchStart = range.upperBound
+            let formatted = jsonLogFormatter?.format(line)
+            let displayText = formatted?.text ?? line
+            let level = formatted?.level ?? .unknown
+
+            let textAttr = NSAttributedString(string: displayText, attributes: [
+                .font: monoFont,
+                .foregroundColor: levelNSColor(level),
+            ])
+            result.append(textAttr)
+
+            if index < lines.count - 1 {
+                result.append(NSAttributedString(string: "\n"))
             }
         }
+        return result
     }
 
-    private func isLineCurrentMatch(lineIndex: Int) -> Bool {
-        guard !searchText.isEmpty else { return false }
-        let lines = logOutput.components(separatedBy: "\n")
-        let searchLower = searchText.lowercased()
-        var matchCount = 0
-        for (index, line) in lines.enumerated() {
-            let lineLower = line.lowercased()
-            var searchStart = lineLower.startIndex
-            while let range = lineLower.range(of: searchLower, range: searchStart..<lineLower.endIndex) {
-                if index == lineIndex && matchCount == searchMatchIndex {
-                    return true
-                }
-                matchCount += 1
-                searchStart = range.upperBound
-                if matchCount > searchMatchIndex { return false }
-            }
-            if index > lineIndex { return false }
-        }
-        return false
-    }
-}
-
-struct LogLineView: View {
-    let line: String
-    let logLevel: JsonLogFormatter.LogLevel
-    let lineNumber: Int
-    let searchText: String
-    let isCurrentMatch: Bool
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            Text("\(lineNumber)")
-                .foregroundColor(.secondary)
-                .frame(width: 40, alignment: .trailing)
-                .padding(.trailing, 8)
-
-            if searchText.isEmpty {
-                Text(line)
-                    .foregroundColor(levelColor)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                highlightedText
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .padding(.vertical, 1)
-        .background(isCurrentMatch ? Color.yellow.opacity(0.2) : Color.clear)
-    }
-
-    // Colors chosen for white background readability
-    private var levelColor: Color {
-        switch logLevel {
+    private func levelNSColor(_ level: JsonLogFormatter.LogLevel) -> NSColor {
+        switch level {
         case .warn:
-            return Color(nsColor: NSColor(red: 0.7, green: 0.5, blue: 0.0, alpha: 1.0)) // dark amber
+            return NSColor(red: 0.7, green: 0.5, blue: 0.0, alpha: 1.0)
         case .error:
-            return Color(nsColor: NSColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1.0)) // red
+            return NSColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1.0)
         case .fatal, .panic:
-            return Color(nsColor: NSColor(red: 0.6, green: 0.0, blue: 0.0, alpha: 1.0)) // dark red
+            return NSColor(red: 0.6, green: 0.0, blue: 0.0, alpha: 1.0)
         default:
-            return .primary
+            return .labelColor
         }
     }
 
-    private var highlightedText: Text {
+    private func highlightSearch(in textView: NSTextView) {
+        guard let storage = textView.textStorage else { return }
+        let fullRange = NSRange(location: 0, length: storage.length)
+
+        // Remove previous search highlights
+        storage.removeAttribute(.backgroundColor, range: fullRange)
+
+        guard !searchText.isEmpty else { return }
+
+        let text = storage.string as NSString
         let searchLower = searchText.lowercased()
-        let lineLower = line.lowercased()
-        var attributed = AttributedString(line)
+        let textLower = text.lowercased as NSString
 
-        var searchStart = lineLower.startIndex
-        while let range = lineLower.range(of: searchLower, range: searchStart..<lineLower.endIndex) {
-            let attrRange = Range(uncheckedBounds: (
-                AttributedString.Index(range.lowerBound, within: attributed)!,
-                AttributedString.Index(range.upperBound, within: attributed)!
-            ))
-            attributed[attrRange].backgroundColor = .yellow
-            attributed[attrRange].foregroundColor = .black
-            searchStart = range.upperBound
+        var matchCount = 0
+        var searchRange = NSRange(location: 0, length: textLower.length)
+
+        while searchRange.location < textLower.length {
+            let range = textLower.range(of: searchLower, options: [], range: searchRange)
+            guard range.location != NSNotFound else { break }
+
+            let bgColor: NSColor = (matchCount == searchMatchIndex) ? .systemYellow : .systemYellow.withAlphaComponent(0.3)
+            storage.addAttribute(.backgroundColor, value: bgColor, range: range)
+
+            if matchCount == searchMatchIndex {
+                // Scroll to current match
+                textView.scrollRangeToVisible(range)
+            }
+
+            matchCount += 1
+            searchRange.location = range.location + range.length
+            searchRange.length = textLower.length - searchRange.location
         }
-
-        return Text(attributed)
     }
 }
 
