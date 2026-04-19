@@ -21,6 +21,7 @@ struct LogWindowView: View {
                         ForEach(supervisor.processes) { proc in
                             TabButton(
                                 title: proc.config.name,
+                                state: proc.state,
                                 isSelected: selectedProcessId == proc.id
                             ) {
                                 selectedProcessId = proc.id
@@ -94,22 +95,37 @@ struct LogWindowView: View {
 
 struct TabButton: View {
     let title: String
+    let state: ProcessState
     let isSelected: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
-                )
-                .foregroundColor(isSelected ? .accentColor : .primary)
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(stateColor)
+                    .frame(width: 7, height: 7)
+                Text(title)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? Color.accentColor.opacity(0.15) : Color.clear)
+            )
+            .foregroundColor(isSelected ? .accentColor : .primary)
         }
         .buttonStyle(.plain)
+    }
+
+    private var stateColor: Color {
+        switch state {
+        case .stopped: return .red
+        case .running: return .green
+        case .needsRestart: return .yellow
+        case .error: return .orange
+        }
     }
 }
 
