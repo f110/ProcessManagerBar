@@ -196,59 +196,6 @@ struct SearchBarView: View {
     }
 }
 
-class LineNumberRulerView: NSRulerView {
-    private let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-
-    init(textView: NSTextView) {
-        super.init(scrollView: textView.enclosingScrollView!, orientation: .verticalRuler)
-        self.clientView = textView
-        self.ruleThickness = 40
-    }
-
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView = self.clientView as? NSTextView,
-              let layoutManager = textView.layoutManager,
-              let textContainer = textView.textContainer else { return }
-
-        let visibleGlyphRange = layoutManager.glyphRange(forBoundingRect: textView.visibleRect, in: textContainer)
-        let visibleCharRange = layoutManager.characterRange(forGlyphRange: visibleGlyphRange, actualGlyphRange: nil)
-
-        let text = textView.string as NSString
-        let attrs: [NSAttributedString.Key: Any] = [
-            .font: monoFont,
-            .foregroundColor: NSColor.secondaryLabelColor,
-        ]
-
-        var lineNumber = 1
-        // Count lines before visible range
-        text.enumerateSubstrings(in: NSRange(location: 0, length: visibleCharRange.location), options: [.byLines, .substringNotRequired]) { _, _, _, _ in
-            lineNumber += 1
-        }
-
-        // Draw line numbers for visible lines
-        text.enumerateSubstrings(in: visibleCharRange, options: [.byLines, .substringNotRequired]) { _, lineRange, _, _ in
-            let glyphRange = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
-            var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
-            lineRect.origin.y += textView.textContainerInset.height
-
-            let relativePoint = self.convert(lineRect.origin, from: textView)
-
-            let numStr = "\(lineNumber)" as NSString
-            let strSize = numStr.size(withAttributes: attrs)
-            let drawPoint = NSPoint(
-                x: self.ruleThickness - strSize.width - 6,
-                y: relativePoint.y + (lineRect.height - strSize.height) / 2
-            )
-            numStr.draw(at: drawPoint, withAttributes: attrs)
-            lineNumber += 1
-        }
-    }
-}
-
 struct LogContentView: NSViewRepresentable {
     let logOutput: String
     let jsonLogFormatter: JsonLogFormatter?
@@ -274,28 +221,6 @@ struct LogContentView: NSViewRepresentable {
         scrollView.hasHorizontalScroller = true
         scrollView.autohidesScrollers = true
 
-        // Line number ruler
-        scrollView.hasVerticalRuler = true
-        scrollView.rulersVisible = true
-        let rulerView = LineNumberRulerView(textView: textView)
-        scrollView.verticalRulerView = rulerView
-
-        // Notify ruler to redraw when text or scroll changes
-        NotificationCenter.default.addObserver(
-            forName: NSView.boundsDidChangeNotification,
-            object: scrollView.contentView,
-            queue: .main
-        ) { _ in
-            rulerView.needsDisplay = true
-        }
-        NotificationCenter.default.addObserver(
-            forName: NSText.didChangeNotification,
-            object: textView,
-            queue: .main
-        ) { _ in
-            rulerView.needsDisplay = true
-        }
-
         context.coordinator.textView = textView
         context.coordinator.scrollView = scrollView
 
@@ -316,8 +241,6 @@ struct LogContentView: NSViewRepresentable {
 
             let attrStr = buildAttributedString()
             textView.textStorage?.setAttributedString(attrStr)
-
-            scrollView.verticalRulerView?.needsDisplay = true
 
             if wasAtBottom && searchText.isEmpty {
                 DispatchQueue.main.async {
