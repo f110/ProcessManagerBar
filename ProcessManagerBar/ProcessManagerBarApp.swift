@@ -5,6 +5,10 @@ import AppKit
 struct ProcessManagerBarApp: App {
     @StateObject private var supervisor = ProcessSupervisor()
 
+    init() {
+        NSApplication.shared.setActivationPolicy(.accessory)
+    }
+
     var body: some Scene {
         MenuBarExtra {
             ContentView(supervisor: supervisor)
