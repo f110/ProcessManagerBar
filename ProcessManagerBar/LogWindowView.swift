@@ -3,75 +3,96 @@ import AppKit
 
 struct LogWindowView: View {
     @ObservedObject var supervisor: ProcessSupervisor
-    @State private var selectedProcessId: String?
+    @ObservedObject var appLogger: AppLogger = AppLogger.shared
+    @State private var selectedTab: String? = "__app__"
     @State private var searchText: String = ""
     @State private var isSearchVisible = false
     @State private var searchMatchIndex: Int = 0
 
+    private let appTabId = "__app__"
+
     var body: some View {
         VStack(spacing: 0) {
-            if supervisor.processes.isEmpty {
-                Text("プロセスなし")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                // Tab bar
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 0) {
-                        ForEach(supervisor.processes) { proc in
-                            TabButton(
-                                title: proc.config.name,
-                                state: proc.state,
-                                isSelected: selectedProcessId == proc.id
-                            ) {
-                                selectedProcessId = proc.id
-                                searchText = ""
-                                searchMatchIndex = 0
-                            }
+            // Tab bar
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    // App log tab
+                    Button(action: {
+                        selectedTab = appTabId
+                        searchText = ""
+                        searchMatchIndex = 0
+                    }) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 9))
+                            Text("App")
+                                .font(.system(size: 12, weight: selectedTab == appTabId ? .semibold : .regular))
                         }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(selectedTab == appTabId ? Color.accentColor.opacity(0.15) : Color.clear)
+                        )
+                        .foregroundColor(selectedTab == appTabId ? .accentColor : .primary)
                     }
-                    .padding(.horizontal, 8)
-                }
-                .padding(.top, 8)
+                    .buttonStyle(.plain)
 
-                Divider()
-
-                // Search bar
-                if isSearchVisible {
-                    SearchBarView(
-                        searchText: $searchText,
-                        matchIndex: $searchMatchIndex,
-                        totalMatches: currentMatchCount,
-                        onClose: {
-                            isSearchVisible = false
+                    ForEach(supervisor.processes) { proc in
+                        TabButton(
+                            title: proc.config.name,
+                            state: proc.state,
+                            isSelected: selectedTab == proc.id
+                        ) {
+                            selectedTab = proc.id
                             searchText = ""
                             searchMatchIndex = 0
                         }
-                    )
-                    Divider()
+                    }
                 }
+                .padding(.horizontal, 8)
+            }
+            .padding(.top, 8)
 
-                // Log content
-                if let proc = selectedProcess {
-                    LogContentView(
-                        logOutput: proc.logOutput,
-                        jsonLogFormatter: (proc.config.jsonLog ?? false) ? proc.jsonLogFormatter : nil,
-                        searchText: searchText,
-                        searchMatchIndex: searchMatchIndex
-                    )
-                } else {
-                    Text("タブを選択してください")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+            Divider()
+
+            // Search bar
+            if isSearchVisible {
+                SearchBarView(
+                    searchText: $searchText,
+                    matchIndex: $searchMatchIndex,
+                    totalMatches: currentMatchCount,
+                    onClose: {
+                        isSearchVisible = false
+                        searchText = ""
+                        searchMatchIndex = 0
+                    }
+                )
+                Divider()
+            }
+
+            // Log content
+            if selectedTab == appTabId {
+                LogContentView(
+                    logOutput: appLogger.logOutput,
+                    jsonLogFormatter: nil,
+                    searchText: searchText,
+                    searchMatchIndex: searchMatchIndex
+                )
+            } else if let proc = selectedProcess {
+                LogContentView(
+                    logOutput: proc.logOutput,
+                    jsonLogFormatter: (proc.config.jsonLog ?? false) ? proc.jsonLogFormatter : nil,
+                    searchText: searchText,
+                    searchMatchIndex: searchMatchIndex
+                )
+            } else {
+                Text("タブを選択してください")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(minWidth: 700, minHeight: 450)
-        .onAppear {
-            if selectedProcessId == nil {
-                selectedProcessId = supervisor.processes.first?.id
-            }
-        }
         .onAppear {
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
                 if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
@@ -84,10 +105,14 @@ struct LogWindowView: View {
     }
 
     private var selectedProcess: ManagedProcess? {
-        supervisor.processes.first { $0.id == selectedProcessId }
+        supervisor.processes.first { $0.id == selectedTab }
     }
 
     private var currentMatchCount: Int {
+        if selectedTab == appTabId {
+            guard !searchText.isEmpty else { return 0 }
+            return appLogger.logOutput.countOccurrences(of: searchText)
+        }
         guard let proc = selectedProcess, !searchText.isEmpty else { return 0 }
         return proc.logOutput.countOccurrences(of: searchText)
     }

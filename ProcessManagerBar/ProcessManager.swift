@@ -134,11 +134,13 @@ class ManagedProcess: ObservableObject, Identifiable {
                 self.process = nil
 
                 if self.isRestarting {
+                    AppLogger.shared.log("[\(self.config.name)] process stopped for restart")
                     self.isRestarting = false
                     self.state = .stopped
                     self.start()
                     return
                 }
+                AppLogger.shared.log("[\(self.config.name)] process stopped (status=\(terminatedProcess.terminationStatus))")
                 if self.state != .needsRestart {
                     self.state = .stopped
                 }
@@ -159,6 +161,7 @@ class ManagedProcess: ObservableObject, Identifiable {
             setpgid(childPid, myPgid)
             self.process = proc
             state = .running
+            AppLogger.shared.log("[\(config.name)] process started (pid=\(childPid))")
             if config.watch ?? false {
                 startFileWatching()
             }
@@ -168,6 +171,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     }
 
     func stop() {
+        AppLogger.shared.log("[\(config.name)] stopping process")
         stopFileWatching()
         guard let proc = process, proc.isRunning else {
             state = .stopped
@@ -177,6 +181,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     }
 
     func restart() {
+        AppLogger.shared.log("[\(config.name)] restarting process")
         stopFileWatching()
         guard let proc = process, proc.isRunning else {
             process = nil
@@ -241,6 +246,7 @@ class ManagedProcess: ObservableObject, Identifiable {
                 let flag = Int32(bitPattern: flags[i])
                 _ = flag
 
+                AppLogger.shared.log("[\(process.config.name)] file changed: \(path)")
                 DispatchQueue.main.async {
                     process.markNeedsRestart()
                 }
@@ -279,6 +285,29 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     deinit {
         stop()
+    }
+}
+
+// MARK: - App Logger
+
+class AppLogger: ObservableObject {
+    static let shared = AppLogger()
+
+    @Published var logOutput: String = ""
+
+    private let dateFormatter: DateFormatter = {
+        let df = DateFormatter()
+        df.dateFormat = "HH:mm:ss.SSS"
+        df.locale = Locale(identifier: "en_US_POSIX")
+        return df
+    }()
+
+    func log(_ message: String) {
+        let timestamp = dateFormatter.string(from: Date())
+        let line = "\(timestamp) \(message)\n"
+        DispatchQueue.main.async {
+            self.logOutput.append(line)
+        }
     }
 }
 
