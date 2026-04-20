@@ -84,6 +84,7 @@ class ManagedProcess: ObservableObject, Identifiable {
             $0.replacingOccurrences(of: "$DIR", with: config.dir)
         }
         proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
+        proc.environment = ShellEnvironment.shared.environment
 
         // Set up log file if configured
         if let logPath = config.logFile {
@@ -286,17 +287,19 @@ class ManagedProcess: ObservableObject, Identifiable {
 class ShellEnvironment {
     static let shared = ShellEnvironment()
 
+    private(set) var environment: [String: String] = [:]
     private var searchPaths: [String] = []
 
     private init() {
-        loadPathFromLoginShell()
+        loadEnvironmentFromLoginShell()
     }
 
-    private func loadPathFromLoginShell() {
+    private func loadEnvironmentFromLoginShell() {
         let shell = ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: shell)
-        proc.arguments = ["-l", "-c", "echo $PATH"]
+        // Use NUL-delimited output so values containing newlines parse correctly.
+        proc.arguments = ["-l", "-c", "/usr/bin/env -0"]
 
         let pipe = Pipe()
         proc.standardOutput = pipe
@@ -307,16 +310,22 @@ class ShellEnvironment {
             proc.waitUntilExit()
 
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            if let pathString = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !pathString.isEmpty {
-                searchPaths = pathString.components(separatedBy: ":")
+            if let text = String(data: data, encoding: .utf8), !text.isEmpty {
+                let entries = text.split(separator: "\0", omittingEmptySubsequences: true)
+                for entry in entries {
+                    guard let eq = entry.firstIndex(of: "=") else { continue }
+                    let key = String(entry[..<eq])
+                    let value = String(entry[entry.index(after: eq)...])
+                    environment[key] = value
+                }
             }
         } catch {
-            print("Failed to load PATH from login shell: \(error)")
+            print("Failed to load environment from login shell: \(error)")
         }
 
-        // Fallback if empty
-        if searchPaths.isEmpty {
+        if let pathString = environment["PATH"], !pathString.isEmpty {
+            searchPaths = pathString.components(separatedBy: ":")
+        } else {
             searchPaths = ["/usr/local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin"]
         }
     }
