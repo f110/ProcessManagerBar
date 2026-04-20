@@ -221,6 +221,67 @@ struct SearchBarView: View {
     }
 }
 
+class ClickableLogTextView: NSTextView {
+    var onStackTraceClick: ((Int) -> Void)?
+    private var trackingArea: NSTrackingArea?
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .cursorUpdate, .activeInKeyWindow, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    private func isOverStackTrace(at event: NSEvent) -> Bool {
+        let point = convert(event.locationInWindow, from: nil)
+        let charIndex = characterIndexForInsertion(at: point)
+        guard let storage = textStorage, charIndex < storage.length else { return false }
+        return storage.attribute(.stackTraceLineIndex, at: charIndex, effectiveRange: nil) != nil
+    }
+
+    override func cursorUpdate(with event: NSEvent) {
+        if isOverStackTrace(at: event) {
+            NSCursor.pointingHand.set()
+        } else {
+            super.cursorUpdate(with: event)
+        }
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        if isOverStackTrace(at: event) {
+            NSCursor.pointingHand.set()
+        } else {
+            super.mouseMoved(with: event)
+        }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        let charIndex = characterIndexForInsertion(at: point)
+        guard let storage = textStorage, charIndex < storage.length else {
+            super.mouseDown(with: event)
+            return
+        }
+        if let lineIndex = storage.attribute(.stackTraceLineIndex, at: charIndex, effectiveRange: nil) as? Int {
+            onStackTraceClick?(lineIndex)
+            return
+        }
+        super.mouseDown(with: event)
+    }
+}
+
+extension NSAttributedString.Key {
+    static let stackTraceLineIndex = NSAttributedString.Key("stackTraceLineIndex")
+}
+
 struct LogContentView: NSViewRepresentable {
     let logOutput: String
     let jsonLogFormatter: JsonLogFormatter?
@@ -228,7 +289,7 @@ struct LogContentView: NSViewRepresentable {
     let searchMatchIndex: Int
 
     func makeNSView(context: Context) -> NSScrollView {
-        let textView = NSTextView()
+        let textView = ClickableLogTextView()
         textView.isEditable = false
         textView.isSelectable = true
         textView.isRichText = true
@@ -239,6 +300,21 @@ struct LogContentView: NSViewRepresentable {
         textView.textContainer?.widthTracksTextView = false
         textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.autoresizingMask = [.width, .height]
+
+        let coordinator = context.coordinator
+        textView.onStackTraceClick = { [weak coordinator] lineIndex in
+            guard let coordinator = coordinator else { return }
+            if coordinator.expandedStackTraces.contains(lineIndex) {
+                coordinator.expandedStackTraces.remove(lineIndex)
+            } else {
+                coordinator.expandedStackTraces.insert(lineIndex)
+            }
+            coordinator.needsRebuild = true
+            // Trigger rebuild
+            DispatchQueue.main.async {
+                coordinator.rebuildContent()
+            }
+        }
 
         let scrollView = NSScrollView()
         scrollView.documentView = textView
@@ -259,12 +335,18 @@ struct LogContentView: NSViewRepresentable {
         let logChanged = coordinator.lastLogOutput != logOutput
         let searchChanged = coordinator.lastSearchText != searchText || coordinator.lastSearchMatchIndex != searchMatchIndex
 
-        if logChanged {
+        coordinator.currentLogOutput = logOutput
+        coordinator.currentFormatter = jsonLogFormatter
+        coordinator.currentSearchText = searchText
+        coordinator.currentSearchMatchIndex = searchMatchIndex
+
+        if logChanged || coordinator.needsRebuild {
             coordinator.lastLogOutput = logOutput
+            coordinator.needsRebuild = false
 
             let wasAtBottom = coordinator.isScrolledToBottom()
 
-            let attrStr = buildAttributedString()
+            let attrStr = buildAttributedString(expandedStackTraces: coordinator.expandedStackTraces)
             textView.textStorage?.setAttributedString(attrStr)
 
             if wasAtBottom && searchText.isEmpty {
@@ -286,11 +368,18 @@ struct LogContentView: NSViewRepresentable {
     }
 
     class Coordinator {
-        var textView: NSTextView?
+        var textView: ClickableLogTextView?
         var scrollView: NSScrollView?
         var lastLogOutput: String = ""
         var lastSearchText: String = ""
         var lastSearchMatchIndex: Int = 0
+        var expandedStackTraces: Set<Int> = []
+        var needsRebuild = false
+
+        var currentLogOutput: String = ""
+        var currentFormatter: JsonLogFormatter?
+        var currentSearchText: String = ""
+        var currentSearchMatchIndex: Int = 0
 
         func isScrolledToBottom() -> Bool {
             guard let scrollView = scrollView, let documentView = scrollView.documentView else { return true }
@@ -298,9 +387,105 @@ struct LogContentView: NSViewRepresentable {
             let documentHeight = documentView.frame.height
             return visibleRect.maxY >= documentHeight - 20
         }
+
+        func rebuildContent() {
+            guard let textView = textView else { return }
+            let wasAtBottom = isScrolledToBottom()
+            let attrStr = buildAttributedStringFromCoordinator()
+            textView.textStorage?.setAttributedString(attrStr)
+            if wasAtBottom && currentSearchText.isEmpty {
+                textView.scrollToEndOfDocument(nil)
+            }
+        }
+
+        private func buildAttributedStringFromCoordinator() -> NSAttributedString {
+            let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+            let lines = currentLogOutput.components(separatedBy: "\n")
+            let result = NSMutableAttributedString()
+
+            for (index, line) in lines.enumerated() {
+                let formatted = currentFormatter?.format(line)
+                let displayText = formatted?.text ?? line
+                let level = formatted?.level ?? .unknown
+
+                let baseOffset = result.length
+                let textAttr = NSAttributedString(string: displayText, attributes: [
+                    .font: monoFont,
+                    .foregroundColor: NSColor.labelColor,
+                ])
+                result.append(textAttr)
+
+                if let levelRange = formatted?.levelNSRange, level != .unknown {
+                    let adjustedRange = NSRange(location: baseOffset + levelRange.location, length: levelRange.length)
+                    result.addAttribute(.foregroundColor, value: levelNSColor(level), range: adjustedRange)
+                }
+
+                if let msgRange = formatted?.messageNSRange {
+                    let adjustedRange = NSRange(location: baseOffset + msgRange.location, length: msgRange.length)
+                    let boldFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .bold)
+                    result.addAttribute(.font, value: boldFont, range: adjustedRange)
+                }
+
+                if let keyRanges = formatted?.keyNSRanges {
+                    for keyRange in keyRanges {
+                        let adjustedRange = NSRange(location: baseOffset + keyRange.location, length: keyRange.length)
+                        result.addAttribute(.foregroundColor, value: NSColor(red: 0.55, green: 0.47, blue: 0.75, alpha: 1.0), range: adjustedRange)
+                    }
+                }
+
+                // Stack trace (collapsible)
+                if let frames = formatted?.stackTrace, !frames.isEmpty {
+                    if expandedStackTraces.contains(index) {
+                        let header = " ▼ stack trace (\(frames.count) frames)"
+                        let headerAttr = NSMutableAttributedString(string: header, attributes: [
+                            .font: monoFont,
+                            .foregroundColor: NSColor.systemOrange,
+                            .stackTraceLineIndex: index,
+                        ])
+                        result.append(headerAttr)
+                        for frame in frames {
+                            let frameLine: String
+                            if frame.filePath.isEmpty {
+                                frameLine = "\n    \(frame.functionName)"
+                            } else {
+                                frameLine = "\n    \(frame.functionName)\n        \(frame.filePath):\(frame.line)"
+                            }
+                            let frameAttr = NSAttributedString(string: frameLine, attributes: [
+                                .font: monoFont,
+                                .foregroundColor: NSColor.secondaryLabelColor,
+                            ])
+                            result.append(frameAttr)
+                        }
+                    } else {
+                        let header = " ▶ stack trace (\(frames.count) frames)"
+                        let headerAttr = NSMutableAttributedString(string: header, attributes: [
+                            .font: monoFont,
+                            .foregroundColor: NSColor.systemOrange,
+                            .stackTraceLineIndex: index,
+                        ])
+                        result.append(headerAttr)
+                    }
+                }
+
+                if index < lines.count - 1 {
+                    result.append(NSAttributedString(string: "\n"))
+                }
+            }
+            return result
+        }
+
+        private func levelNSColor(_ level: JsonLogFormatter.LogLevel) -> NSColor {
+            switch level {
+            case .info: return NSColor(red: 0.2, green: 0.55, blue: 0.8, alpha: 1.0)
+            case .warn: return NSColor(red: 0.7, green: 0.5, blue: 0.0, alpha: 1.0)
+            case .error: return NSColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 1.0)
+            case .fatal, .panic: return NSColor(red: 0.6, green: 0.0, blue: 0.0, alpha: 1.0)
+            default: return .labelColor
+            }
+        }
     }
 
-    private func buildAttributedString() -> NSAttributedString {
+    private func buildAttributedString(expandedStackTraces: Set<Int>) -> NSAttributedString {
         let monoFont = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
         let lines = logOutput.components(separatedBy: "\n")
         let result = NSMutableAttributedString()
@@ -332,6 +517,40 @@ struct LogContentView: NSViewRepresentable {
                 for keyRange in keyRanges {
                     let adjustedRange = NSRange(location: baseOffset + keyRange.location, length: keyRange.length)
                     result.addAttribute(.foregroundColor, value: NSColor(red: 0.55, green: 0.47, blue: 0.75, alpha: 1.0), range: adjustedRange)
+                }
+            }
+
+            // Stack trace (collapsible)
+            if let frames = formatted?.stackTrace, !frames.isEmpty {
+                if expandedStackTraces.contains(index) {
+                    let header = " ▼ stack trace (\(frames.count) frames)"
+                    let headerAttr = NSMutableAttributedString(string: header, attributes: [
+                        .font: monoFont,
+                        .foregroundColor: NSColor.systemOrange,
+                        .stackTraceLineIndex: index,
+                    ])
+                    result.append(headerAttr)
+                    for frame in frames {
+                        let frameLine: String
+                        if frame.filePath.isEmpty {
+                            frameLine = "\n    \(frame.functionName)"
+                        } else {
+                            frameLine = "\n    \(frame.functionName)\n        \(frame.filePath):\(frame.line)"
+                        }
+                        let frameAttr = NSAttributedString(string: frameLine, attributes: [
+                            .font: monoFont,
+                            .foregroundColor: NSColor.secondaryLabelColor,
+                        ])
+                        result.append(frameAttr)
+                    }
+                } else {
+                    let header = " ▶ stack trace (\(frames.count) frames)"
+                    let headerAttr = NSMutableAttributedString(string: header, attributes: [
+                        .font: monoFont,
+                        .foregroundColor: NSColor.systemOrange,
+                        .stackTraceLineIndex: index,
+                    ])
+                    result.append(headerAttr)
                 }
             }
 
@@ -405,12 +624,19 @@ class JsonLogFormatter {
         case trace, debug, info, warn, error, fatal, panic, unknown
     }
 
+    struct StackFrame {
+        let functionName: String
+        let filePath: String
+        let line: String
+    }
+
     struct FormatResult {
         let text: String
         let level: LogLevel
         let levelNSRange: NSRange?
         let messageNSRange: NSRange?
         let keyNSRanges: [NSRange]
+        let stackTrace: [StackFrame]?
     }
 
     func format(_ line: String) -> FormatResult {
@@ -418,7 +644,7 @@ class JsonLogFormatter {
         guard trimmed.hasPrefix("{"),
               let data = trimmed.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return FormatResult(text: line, level: .unknown, levelNSRange: nil, messageNSRange: nil, keyNSRanges: [])
+            return FormatResult(text: line, level: .unknown, levelNSRange: nil, messageNSRange: nil, keyNSRanges: [], stackTrace: nil)
         }
 
         var remaining = obj
@@ -429,6 +655,8 @@ class JsonLogFormatter {
         let message = Self.extractFirst(from: &remaining, keys: messageKeys)
         let caller = Self.extractFirst(from: &remaining, keys: callerKeys)
         let errorVal = Self.extractFirst(from: &remaining, keys: errorKeys)
+        let stackVal = remaining.removeValue(forKey: "error.stack")
+            ?? remaining.removeValue(forKey: "stacktrace")
 
         let levelStr = levelVal.map { Self.stringValue($0) } ?? ""
         let logLevel = Self.parseLogLevel(levelStr)
@@ -478,12 +706,53 @@ class JsonLogFormatter {
             parts.append("\(key)=\(Self.stringValue(remaining[key]!))")
         }
 
-        // Caller — at the end with arrow
-        if let c = caller {
+        // Parse stack trace
+        let parsedStack: [StackFrame]?
+        if let sv = stackVal {
+            parsedStack = Self.parseStackTrace(Self.stringValue(sv))
+        } else {
+            parsedStack = nil
+        }
+
+        // Caller — at the end with arrow (skip if stack trace is available)
+        if parsedStack == nil, let c = caller {
             parts.append("→ \(Self.stringValue(c))")
         }
 
-        return FormatResult(text: parts.joined(separator: " "), level: logLevel, levelNSRange: levelNSRange, messageNSRange: messageNSRange, keyNSRanges: keyNSRanges)
+        return FormatResult(text: parts.joined(separator: " "), level: logLevel, levelNSRange: levelNSRange, messageNSRange: messageNSRange, keyNSRanges: keyNSRanges, stackTrace: parsedStack)
+    }
+
+    static func parseStackTrace(_ raw: String) -> [StackFrame]? {
+        let lines = raw.components(separatedBy: "\n")
+        var frames: [StackFrame] = []
+        var i = 0
+        while i < lines.count {
+            let funcLine = lines[i].trimmingCharacters(in: .whitespaces)
+            guard !funcLine.isEmpty else { i += 1; continue }
+            i += 1
+            guard i < lines.count else {
+                // Single line without file info — still a frame
+                frames.append(StackFrame(functionName: funcLine, filePath: "", line: ""))
+                break
+            }
+            let fileLine = lines[i].trimmingCharacters(in: .whitespaces)
+            if fileLine.contains(":") && !fileLine.hasPrefix("/") == false || fileLine.contains(":") {
+                // Parse "filepath:lineNumber" or "filepath:lineNumber +0xoffset"
+                let parts = fileLine.components(separatedBy: ":")
+                if parts.count >= 2 {
+                    let path = parts[0]
+                    let lineNum = parts[1].components(separatedBy: " ").first ?? parts[1]
+                    frames.append(StackFrame(functionName: funcLine, filePath: path, line: lineNum))
+                } else {
+                    frames.append(StackFrame(functionName: funcLine, filePath: fileLine, line: ""))
+                }
+                i += 1
+            } else {
+                // No file line follows — treat current as function only
+                frames.append(StackFrame(functionName: funcLine, filePath: "", line: ""))
+            }
+        }
+        return frames.isEmpty ? nil : frames
     }
 
     private static func parseLogLevel(_ level: String) -> LogLevel {
