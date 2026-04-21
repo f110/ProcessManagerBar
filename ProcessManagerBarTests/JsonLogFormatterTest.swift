@@ -161,6 +161,62 @@ class JsonLogFormatterTest: XCTestCase {
         }
     }
 
+    func testMultipleTimestampFieldsOnlyOneAdopted() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"time":"2026-04-19T01:00:00+09:00","ts":"2026-04-19T02:00:00+09:00","msg":"hello"}"#
+        let result = fmt.format(line).text
+        // "time" should be adopted (higher priority), "ts" should NOT appear as a field
+        XCTAssertTrue(result.contains("Apr 19 01:00:00"), "Should adopt 'time': \(result)")
+        XCTAssertFalse(result.contains("ts="), "Duplicate 'ts' should be dropped, got: \(result)")
+        XCTAssertFalse(result.contains("time="), "Duplicate 'time' should be dropped, got: \(result)")
+        XCTAssertFalse(result.contains("02:00:00"), "Should not show dropped timestamp, got: \(result)")
+    }
+
+    func testTsOnlyUsedAsTimestamp() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"ts":"2026-04-19T01:53:27+09:00","msg":"hello"}"#
+        let result = fmt.format(line).text
+        XCTAssertTrue(result.hasPrefix("Apr 19 01:53:27"), "Should use ts as timestamp: \(result)")
+        XCTAssertFalse(result.contains("ts="), "ts should not appear as a field: \(result)")
+    }
+
+    func testNestedObjectFlattened() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"level":"info","msg":"hello","gates":{"async-updating-auth0":{},"email-verification":{}}}"#
+        let result = fmt.format(line).text
+        XCTAssertTrue(result.contains("gates.async-updating-auth0={}"), "got: \(result)")
+        XCTAssertTrue(result.contains("gates.email-verification={}"), "got: \(result)")
+        XCTAssertFalse(result.contains("\"async-updating-auth0\""), "Raw JSON should not leak: \(result)")
+    }
+
+    func testNestedObjectWithValuesFlattened() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"level":"info","msg":"hello","cfg":{"enabled":true,"rollout":50}}"#
+        let result = fmt.format(line).text
+        XCTAssertTrue(result.contains("cfg.enabled=true"), "got: \(result)")
+        XCTAssertTrue(result.contains("cfg.rollout=50"), "got: \(result)")
+    }
+
+    func testDeeplyNestedFlattened() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"msg":"hi","a":{"b":{"c":"deep"}}}"#
+        let result = fmt.format(line).text
+        XCTAssertTrue(result.contains("a.b.c=deep"), "got: \(result)")
+    }
+
+    func testFullNestedLogLine() {
+        let fmt = JsonLogFormatter()
+        let line = #"{"time":"2026-04-21T01:54:03.454686Z","level":"INFO","msg":"Load feature gate flags successfully","gates":{"async-updating-auth0":{},"elogin-registration-flow":{},"email-verification":{},"identity-provider":{}},"ts":"2026-04-21T01:54:03.454Z"}"#
+        let result = fmt.format(line).text
+        XCTAssertTrue(result.contains("│INF│"))
+        XCTAssertTrue(result.contains("Load feature gate flags successfully"))
+        XCTAssertTrue(result.contains("gates.async-updating-auth0={}"))
+        XCTAssertTrue(result.contains("gates.elogin-registration-flow={}"))
+        XCTAssertTrue(result.contains("gates.email-verification={}"))
+        XCTAssertTrue(result.contains("gates.identity-provider={}"))
+        XCTAssertFalse(result.contains("ts="), "duplicate ts should be dropped: \(result)")
+    }
+
     func testFieldOrder() {
         let fmt = JsonLogFormatter()
         // Verify: timestamp, level, message, extra fields, then caller at end

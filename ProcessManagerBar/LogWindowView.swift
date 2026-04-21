@@ -612,7 +612,7 @@ struct LogContentView: NSViewRepresentable {
 }
 
 class JsonLogFormatter {
-    private let timestampKeys: Set<String> = ["time", "timestamp", "ts", "t"]
+    private let timestampKeys: [String] = ["time", "timestamp", "ts", "t"]
     private let levelKeys: Set<String> = ["level", "lvl", "severity"]
     private let messageKeys: Set<String> = ["msg", "message"]
     private let callerKeys: Set<String> = ["caller", "source"]
@@ -650,7 +650,7 @@ class JsonLogFormatter {
         var remaining = obj
 
         // Extract special fields
-        let timestamp = Self.extractFirst(from: &remaining, keys: timestampKeys)
+        let timestamp = Self.extractFirstOrdered(from: &remaining, keys: timestampKeys)
         let levelVal = Self.extractFirst(from: &remaining, keys: levelKeys)
         let message = Self.extractFirst(from: &remaining, keys: messageKeys)
         let caller = Self.extractFirst(from: &remaining, keys: callerKeys)
@@ -698,12 +698,14 @@ class JsonLogFormatter {
             parts.append("error=\(Self.stringValue(err))")
         }
 
-        // Remaining fields in sorted order
+        // Remaining fields in sorted order — nested objects are flattened to dot-notation
         for key in remaining.keys.sorted() {
-            let currentText = parts.joined(separator: " ")
-            let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
-            keyNSRanges.append(NSRange(location: startOffset, length: (key as NSString).length))
-            parts.append("\(key)=\(Self.stringValue(remaining[key]!))")
+            for (flatKey, valStr) in Self.flattenField(key: key, value: remaining[key]!) {
+                let currentText = parts.joined(separator: " ")
+                let startOffset = currentText.isEmpty ? 0 : (currentText as NSString).length + 1
+                keyNSRanges.append(NSRange(location: startOffset, length: (flatKey as NSString).length))
+                parts.append("\(flatKey)=\(valStr)")
+            }
         }
 
         // Parse stack trace
@@ -775,6 +777,18 @@ class JsonLogFormatter {
             }
         }
         return nil
+    }
+
+    // Returns the first matching value by key priority, and drops all other
+    // matching keys from `obj` so duplicates don't leak into the output.
+    private static func extractFirstOrdered(from obj: inout [String: Any], keys: [String]) -> Any? {
+        var result: Any?
+        for key in keys {
+            if let value = obj.removeValue(forKey: key), result == nil {
+                result = value
+            }
+        }
+        return result
     }
 
     private static func formatLevel(_ level: String) -> String {
@@ -911,11 +925,28 @@ class JsonLogFormatter {
         return df.string(from: date)
     }
 
+    // Flattens a nested dictionary into dot-notation (key=value) pairs.
+    // Non-dictionary values and empty dictionaries are returned as a single pair.
+    static func flattenField(key: String, value: Any) -> [(key: String, valueStr: String)] {
+        if let dict = value as? [String: Any], !dict.isEmpty {
+            var results: [(String, String)] = []
+            for childKey in dict.keys.sorted() {
+                let fullKey = "\(key).\(childKey)"
+                results.append(contentsOf: flattenField(key: fullKey, value: dict[childKey]!))
+            }
+            return results
+        }
+        return [(key, stringValue(value))]
+    }
+
     static func stringValue(_ value: Any) -> String {
         switch value {
         case let s as String:
             return s
         case let n as NSNumber:
+            if CFGetTypeID(n) == CFBooleanGetTypeID() {
+                return n.boolValue ? "true" : "false"
+            }
             return n.stringValue
         case is NSNull:
             return "null"
