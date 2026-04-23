@@ -31,6 +31,7 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     @Published var state: ProcessState = .stopped
     @Published var logOutput: String = ""
+    var maxLogLines: Int = Configuration.defaultMaxLogLines
     let jsonLogFormatter: JsonLogFormatter = JsonLogFormatter()
 
     private var process: Process?
@@ -43,6 +44,26 @@ class ManagedProcess: ObservableObject, Identifiable {
     private static let ignoredDirNames: Set<String> = [
         ".git", "node_modules", "vendor", ".build", "__pycache__", ".svn", ".hg",
     ]
+
+    static func trimLog(_ log: inout String, maxLines: Int) {
+        guard maxLines > 0 else { return }
+        var newlineCount = 0
+        for c in log where c == "\n" { newlineCount += 1 }
+        guard newlineCount > maxLines else { return }
+        let toSkip = newlineCount - maxLines
+        var skipped = 0
+        var idx = log.startIndex
+        while idx < log.endIndex {
+            if log[idx] == "\n" {
+                skipped += 1
+                if skipped == toSkip {
+                    log = String(log[log.index(after: idx)...])
+                    return
+                }
+            }
+            idx = log.index(after: idx)
+        }
+    }
 
     init(config: ProcessConfig) {
         self.config = config
@@ -113,7 +134,9 @@ class ManagedProcess: ObservableObject, Identifiable {
             let data = handle.availableData
             guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
             DispatchQueue.main.async {
-                self?.logOutput.append(text)
+                guard let self = self else { return }
+                self.logOutput.append(text)
+                Self.trimLog(&self.logOutput, maxLines: self.maxLogLines)
             }
             self?.logFileHandle?.write(data)
         }
@@ -294,6 +317,7 @@ class AppLogger: ObservableObject {
     static let shared = AppLogger()
 
     @Published var logOutput: String = ""
+    var maxLogLines: Int = Configuration.defaultMaxLogLines
 
     private let dateFormatter: DateFormatter = {
         let df = DateFormatter()
@@ -307,6 +331,7 @@ class AppLogger: ObservableObject {
         let line = "\(timestamp) \(message)\n"
         DispatchQueue.main.async {
             self.logOutput.append(line)
+            ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
         }
     }
 }
@@ -408,6 +433,9 @@ class ProcessSupervisor: ObservableObject {
 
         do {
             let config = try Configuration.read(from: url)
+            let maxLogLines = config.maxLogLines ?? Configuration.defaultMaxLogLines
+            AppLogger.shared.maxLogLines = maxLogLines
+
             let oldProcesses = processes
             for proc in oldProcesses {
                 if !config.processes.contains(where: { $0.name == proc.config.name }) {
@@ -424,6 +452,10 @@ class ProcessSupervisor: ObservableObject {
                     let managed = ManagedProcess(config: procConfig)
                     newProcesses.append(managed)
                 }
+            }
+
+            for proc in newProcesses {
+                proc.maxLogLines = maxLogLines
             }
 
             processes = newProcesses

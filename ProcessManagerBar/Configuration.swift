@@ -20,6 +20,14 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
 
 struct Configuration: Codable {
     var processes: [ProcessConfig]
+    var maxLogLines: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case processes
+        case maxLogLines = "max_log_lines"
+    }
+
+    static let defaultMaxLogLines = 1000
 
     static func read(from url: URL) throws -> Configuration {
         let data = try String(contentsOf: url, encoding: .utf8)

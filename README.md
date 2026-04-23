@@ -9,6 +9,7 @@ Create a YAML configuration file (e.g., `process.yaml`) to define managed proces
 ### Format
 
 ```yaml
+max_log_lines: 1000
 processes:
   - name: http
     command: ["go", "run", "./cmd/server"]
@@ -18,7 +19,14 @@ processes:
     watch: true
 ```
 
-### Fields
+### Top-level fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `processes` | list | Yes | Managed process definitions |
+| `max_log_lines` | int | No | Maximum number of log lines retained in memory per tab (default: `1000`) |
+
+### Process fields
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
