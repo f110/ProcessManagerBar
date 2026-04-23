@@ -33,12 +33,13 @@ processes:
 | `name` | string | Yes | Process identifier |
 | `command` | string[] | Yes | Command and arguments to execute |
 | `dir` | string | Yes | Working directory |
-| `log_file` | string | No | Log file path (supports `~` expansion) |
+| `log_file` | string | No | Log file path |
 | `json_log` | bool | No | Parse logs as JSON (default: `false`) |
 | `watch` | bool | No | Auto-restart on file changes in `dir` (default: `false`) |
 
 ### Notes
 
+- Leading `~` is expanded to the user's home directory in `dir`, `log_file`, and every `command` entry.
 - `command` array supports `$DIR` variable, which is replaced with the `dir` value.
 - When `watch` is enabled, changes in the working directory trigger a process restart. The following directories are ignored: `.git`, `node_modules`, `vendor`, `.build`, `__pycache__`, `.svn`, `.hg`.
 

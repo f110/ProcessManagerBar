@@ -69,6 +69,10 @@ class ManagedProcess: ObservableObject, Identifiable {
         self.config = config
     }
 
+    static func expandTilde(_ path: String) -> String {
+        return (path as NSString).expandingTildeInPath
+    }
+
     func start() {
         guard state != .running else { return }
 
@@ -77,14 +81,15 @@ class ManagedProcess: ObservableObject, Identifiable {
             return
         }
 
-        let executable = config.command[0]
+        let expandedDir = Self.expandTilde(config.dir)
+        let executable = Self.expandTilde(config.command[0])
         let resolvedPath: String
 
         if executable.contains("/") {
             // Absolute or relative path — use as-is
             let fullPath = executable.hasPrefix("/")
                 ? executable
-                : (config.dir as NSString).appendingPathComponent(executable)
+                : (expandedDir as NSString).appendingPathComponent(executable)
             guard FileManager.default.isExecutableFile(atPath: fullPath) else {
                 state = .error("実行ファイルが見つかりません: \(executable)")
                 return
@@ -102,14 +107,14 @@ class ManagedProcess: ObservableObject, Identifiable {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: resolvedPath)
         proc.arguments = Array(config.command.dropFirst()).map {
-            $0.replacingOccurrences(of: "$DIR", with: config.dir)
+            Self.expandTilde($0.replacingOccurrences(of: "$DIR", with: expandedDir))
         }
-        proc.currentDirectoryURL = URL(fileURLWithPath: config.dir)
+        proc.currentDirectoryURL = URL(fileURLWithPath: expandedDir)
         proc.environment = ShellEnvironment.shared.environment
 
         // Set up log file if configured
         if let logPath = config.logFile {
-            let expandedPath = NSString(string: logPath).expandingTildeInPath
+            let expandedPath = Self.expandTilde(logPath)
             let logURL = URL(fileURLWithPath: expandedPath)
             try? FileManager.default.createDirectory(
                 at: logURL.deletingLastPathComponent(),
@@ -238,7 +243,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     private func startFileWatching() {
         stopFileWatching()
 
-        let pathToWatch = config.dir as CFString
+        let pathToWatch = Self.expandTilde(config.dir) as CFString
         let pathsToWatch = [pathToWatch] as CFArray
 
         var context = FSEventStreamContext(
