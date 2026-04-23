@@ -8,10 +8,73 @@ struct LogWindowView: View {
     @State private var searchText: String = ""
     @State private var isSearchVisible = false
     @State private var searchMatchIndex: Int = 0
+    @State private var isPaletteVisible = false
+    @State private var paletteText = ""
+    @State private var paletteSelectedIndex = 0
 
     private let appTabId = "__app__"
 
+    private var paletteTabs: [PaletteTab] {
+        var tabs: [PaletteTab] = [
+            PaletteTab(id: appTabId, title: "App", isAppTab: true, state: nil)
+        ]
+        for proc in supervisor.processes {
+            tabs.append(PaletteTab(id: proc.id, title: proc.config.name, isAppTab: false, state: proc.state))
+        }
+        return tabs
+    }
+
+    private var filteredPaletteTabs: [PaletteTab] {
+        if paletteText.isEmpty { return paletteTabs }
+        let lower = paletteText.lowercased()
+        return paletteTabs.filter { $0.title.lowercased().contains(lower) }
+    }
+
+    private func closePalette() {
+        isPaletteVisible = false
+        paletteText = ""
+        paletteSelectedIndex = 0
+    }
+
     var body: some View {
+        ZStack(alignment: .top) {
+            mainContent
+
+            if isPaletteVisible {
+                TabPaletteView(
+                    searchText: $paletteText,
+                    selectedIndex: $paletteSelectedIndex,
+                    tabs: filteredPaletteTabs,
+                    onSelect: { tabId in
+                        selectedTab = tabId
+                        searchText = ""
+                        searchMatchIndex = 0
+                        closePalette()
+                    },
+                    onClose: closePalette
+                )
+                .padding(.top, 60)
+            }
+        }
+        .onAppear {
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                guard !isPaletteVisible else { return event }
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
+                    isSearchVisible = true
+                    return nil
+                }
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "p" {
+                    paletteText = ""
+                    paletteSelectedIndex = 0
+                    isPaletteVisible = true
+                    return nil
+                }
+                return event
+            }
+        }
+    }
+
+    private var mainContent: some View {
         VStack(spacing: 0) {
             // Tab bar
             ScrollView(.horizontal, showsIndicators: false) {
@@ -93,15 +156,6 @@ struct LogWindowView: View {
             }
         }
         .frame(minWidth: 700, minHeight: 450)
-        .onAppear {
-            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "f" {
-                    isSearchVisible = true
-                    return nil
-                }
-                return event
-            }
-        }
     }
 
     private var selectedProcess: ManagedProcess? {
@@ -972,5 +1026,176 @@ extension String {
             searchStart = range.upperBound
         }
         return count
+    }
+}
+
+struct PaletteTab: Identifiable {
+    let id: String
+    let title: String
+    let isAppTab: Bool
+    let state: ProcessState?
+}
+
+final class PaletteLiveTabs {
+    var value: [PaletteTab] = []
+}
+
+struct TabPaletteView: View {
+    @Binding var searchText: String
+    @Binding var selectedIndex: Int
+    let tabs: [PaletteTab]
+    let onSelect: (String) -> Void
+    let onClose: () -> Void
+    @FocusState private var isTextFieldFocused: Bool
+    @State private var eventMonitor: Any?
+    @State private var liveTabs = PaletteLiveTabs()
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                    .font(.system(size: 12))
+                TextField("タブを検索...", text: $searchText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .focused($isTextFieldFocused)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+
+            if tabs.isEmpty {
+                Divider()
+                Text("タブが見つかりません")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                    .padding(20)
+            } else {
+                Divider()
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(Array(tabs.enumerated()), id: \.element.id) { index, tab in
+                                paletteRow(index: index, tab: tab)
+                                    .id(tab.id)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 300)
+                    .onChange(of: selectedIndex) {
+                        guard selectedIndex >= 0 && selectedIndex < tabs.count else { return }
+                        proxy.scrollTo(tabs[selectedIndex].id, anchor: .center)
+                    }
+                }
+            }
+        }
+        .frame(width: 420)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .windowBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.secondary.opacity(0.2), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 4)
+        .onAppear {
+            liveTabs.value = tabs
+            isTextFieldFocused = true
+            installEventMonitor()
+        }
+        .onDisappear {
+            removeEventMonitor()
+        }
+        .onChange(of: searchText) {
+            selectedIndex = 0
+        }
+        .onChange(of: tabs.map(\.id)) {
+            liveTabs.value = tabs
+        }
+    }
+
+    @ViewBuilder
+    private func paletteRow(index: Int, tab: PaletteTab) -> some View {
+        Button(action: { onSelect(tab.id) }) {
+            HStack(spacing: 8) {
+                if tab.isAppTab {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 11))
+                        .frame(width: 12)
+                } else if let state = tab.state {
+                    Circle()
+                        .fill(stateColor(state))
+                        .frame(width: 7, height: 7)
+                        .frame(width: 12)
+                } else {
+                    Spacer().frame(width: 12)
+                }
+                Text(tab.title)
+                    .font(.system(size: 13))
+                Spacer()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(index == selectedIndex ? Color.accentColor.opacity(0.2) : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func installEventMonitor() {
+        let live = liveTabs
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            switch event.keyCode {
+            case 53: // Escape
+                onClose()
+                return nil
+            case 126: // Up arrow
+                if !live.value.isEmpty {
+                    selectedIndex = max(0, selectedIndex - 1)
+                }
+                return nil
+            case 125: // Down arrow
+                if !live.value.isEmpty {
+                    selectedIndex = min(live.value.count - 1, selectedIndex + 1)
+                }
+                return nil
+            case 36, 76: // Return / Enter
+                commitSelection()
+                return nil
+            default:
+                if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "p" {
+                    onClose()
+                    return nil
+                }
+                return event
+            }
+        }
+    }
+
+    private func removeEventMonitor() {
+        if let monitor = eventMonitor {
+            NSEvent.removeMonitor(monitor)
+        }
+        eventMonitor = nil
+    }
+
+    private func commitSelection() {
+        let current = liveTabs.value
+        guard !current.isEmpty else {
+            onClose()
+            return
+        }
+        let idx = max(0, min(selectedIndex, current.count - 1))
+        onSelect(current[idx].id)
+    }
+
+    private func stateColor(_ state: ProcessState) -> Color {
+        switch state {
+        case .stopped: return .red
+        case .running: return .green
+        case .needsRestart: return .yellow
+        case .error: return .orange
+        }
     }
 }
