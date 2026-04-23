@@ -145,6 +145,27 @@ struct ProcessRowView: View {
             .buttonStyle(.borderless)
             .disabled(process.state == .stopped || process.state.isError)
             .help("再起動")
+            if isRunning {
+                Button {
+                    process.stop()
+                } label: {
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("停止")
+            } else {
+                Button {
+                    process.start()
+                } label: {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("開始")
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -160,6 +181,13 @@ struct ProcessRowView: View {
             Button("再起動") { process.restart() }
             Button("停止") { process.stop() }
             Button("開始") { process.start() }
+        }
+    }
+
+    private var isRunning: Bool {
+        switch process.state {
+        case .running, .needsRestart: return true
+        case .stopped, .error: return false
         }
     }
 
