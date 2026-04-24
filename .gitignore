@@ -1,2 +1,4 @@
 .DS_Store
 process.yaml
+/ProcessManagerBar.app
+/.build
