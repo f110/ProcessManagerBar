@@ -70,6 +70,7 @@ class ManagedProcess: ObservableObject, Identifiable {
     }
 
     static func expandTilde(_ path: String) -> String {
+        guard path.hasPrefix("~") else { return path }
         return (path as NSString).expandingTildeInPath
     }
 

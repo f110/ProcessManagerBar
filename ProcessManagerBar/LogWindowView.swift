@@ -457,8 +457,20 @@ struct LogContentView: NSViewRepresentable {
             let lines = currentLogOutput.components(separatedBy: "\n")
             let result = NSMutableAttributedString()
 
-            for (index, line) in lines.enumerated() {
-                let formatted = currentFormatter?.format(line)
+            var i = 0
+            while i < lines.count {
+                let line = lines[i]
+                let formatted: JsonLogFormatter.FormatResult?
+                let consumed: Int
+                if let formatter = currentFormatter,
+                   let panic = formatter.parsePanic(lines: lines, startIndex: i) {
+                    formatted = panic.result
+                    consumed = panic.consumedLines
+                } else {
+                    formatted = currentFormatter?.format(line)
+                    consumed = 1
+                }
+                let index = i
                 let displayText = formatted?.text ?? line
                 let level = formatted?.level ?? .unknown
 
@@ -521,7 +533,8 @@ struct LogContentView: NSViewRepresentable {
                     }
                 }
 
-                if index < lines.count - 1 {
+                i += consumed
+                if i < lines.count {
                     result.append(NSAttributedString(string: "\n"))
                 }
             }
@@ -544,8 +557,20 @@ struct LogContentView: NSViewRepresentable {
         let lines = logOutput.components(separatedBy: "\n")
         let result = NSMutableAttributedString()
 
-        for (index, line) in lines.enumerated() {
-            let formatted = jsonLogFormatter?.format(line)
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            let formatted: JsonLogFormatter.FormatResult?
+            let consumed: Int
+            if let formatter = jsonLogFormatter,
+               let panic = formatter.parsePanic(lines: lines, startIndex: i) {
+                formatted = panic.result
+                consumed = panic.consumedLines
+            } else {
+                formatted = jsonLogFormatter?.format(line)
+                consumed = 1
+            }
+            let index = i
             let displayText = formatted?.text ?? line
             let level = formatted?.level ?? .unknown
 
@@ -608,7 +633,8 @@ struct LogContentView: NSViewRepresentable {
                 }
             }
 
-            if index < lines.count - 1 {
+            i += consumed
+            if i < lines.count {
                 result.append(NSAttributedString(string: "\n"))
             }
         }
@@ -673,6 +699,9 @@ class JsonLogFormatter {
     private let errorKeys: Set<String> = ["error", "err"]
 
     private var cachedTimestampParser: TimestampParser?
+    // Tracks the wall-clock time we first observed each panic block, keyed by
+    // its raw text. The cache lets re-renders display a stable timestamp.
+    private var panicTimestamps: [String: Date] = [:]
 
     enum LogLevel: Equatable {
         case trace, debug, info, warn, error, fatal, panic, unknown
@@ -776,6 +805,110 @@ class JsonLogFormatter {
         }
 
         return FormatResult(text: parts.joined(separator: " "), level: logLevel, levelNSRange: levelNSRange, messageNSRange: messageNSRange, keyNSRanges: keyNSRanges, stackTrace: parsedStack)
+    }
+
+    // Detects a Go runtime panic that spans multiple lines starting at `startIndex`.
+    // Returns the synthesized FormatResult and how many input lines were consumed,
+    // or nil if the lines do not look like a panic (no goroutine header).
+    func parsePanic(lines: [String], startIndex: Int) -> (result: FormatResult, consumedLines: Int)? {
+        guard startIndex < lines.count else { return nil }
+        let firstLine = lines[startIndex]
+        let trimmedFirst = firstLine.trimmingCharacters(in: .whitespaces)
+        if trimmedFirst.hasPrefix("{") { return nil }
+        guard let panicRange = firstLine.range(of: "panic:") else { return nil }
+
+        let panicMessage = String(firstLine[panicRange.upperBound...])
+            .trimmingCharacters(in: .whitespaces)
+        var consumed = 1
+        var i = startIndex + 1
+
+        while i < lines.count, lines[i].trimmingCharacters(in: .whitespaces).isEmpty {
+            i += 1
+            consumed += 1
+        }
+
+        guard i < lines.count else { return nil }
+        let goroutineLine = lines[i].trimmingCharacters(in: .whitespaces)
+        guard goroutineLine.hasPrefix("goroutine "), goroutineLine.hasSuffix(":") else {
+            return nil
+        }
+        let goroutineInfo = String(goroutineLine.dropFirst("goroutine ".count).dropLast())
+        i += 1
+        consumed += 1
+
+        // Each frame is a function line followed by an indented file line.
+        // Stack-trace lines always have a whitespace-indented file line; if the
+        // line we'd take as a file line doesn't start with whitespace, the
+        // current line isn't part of the panic — bail out and let normal log
+        // parsing handle it.
+        var frames: [StackFrame] = []
+        while i + 1 < lines.count {
+            let line = lines[i]
+            let nextLine = lines[i + 1]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty { break }
+            if line.hasPrefix("{") { break }
+            if !(nextLine.first == "\t" || nextLine.hasPrefix(" ")) { break }
+
+            let funcLine = trimmed
+            let fileLine = nextLine.trimmingCharacters(in: .whitespaces)
+            let fileParts = fileLine.components(separatedBy: ":")
+            if fileParts.count >= 2 {
+                let path = fileParts[0]
+                let lineNum = fileParts[1].components(separatedBy: " ").first ?? fileParts[1]
+                frames.append(StackFrame(functionName: funcLine, filePath: path, line: lineNum))
+            } else {
+                frames.append(StackFrame(functionName: funcLine, filePath: fileLine, line: ""))
+            }
+            i += 2
+            consumed += 2
+        }
+
+        // Cache the wall-clock time of first detection so the displayed
+        // timestamp doesn't drift on every re-render.
+        let cacheKey = lines[startIndex..<(startIndex + consumed)].joined(separator: "\n")
+        let timestamp: Date
+        if let cached = panicTimestamps[cacheKey] {
+            timestamp = cached
+        } else {
+            timestamp = Date()
+            panicTimestamps[cacheKey] = timestamp
+        }
+        let timestampStr = Self.formatDate(timestamp, includeFraction: true)
+
+        var parts: [String] = [timestampStr]
+
+        let levelPart = "│PNC│"
+        let beforeLevel = parts.joined(separator: " ")
+        let levelOffset = (beforeLevel as NSString).length + 1
+        let levelNSRange = NSRange(location: levelOffset, length: (levelPart as NSString).length)
+        parts.append(levelPart)
+
+        var messageNSRange: NSRange?
+        if !panicMessage.isEmpty {
+            let beforeMsg = parts.joined(separator: " ")
+            let msgOffset = (beforeMsg as NSString).length + 1
+            messageNSRange = NSRange(location: msgOffset, length: (panicMessage as NSString).length)
+            parts.append(panicMessage)
+        }
+
+        var keyNSRanges: [NSRange] = []
+        let beforeGoroutine = parts.joined(separator: " ")
+        let goroutineKeyOffset = (beforeGoroutine as NSString).length + 1
+        keyNSRanges.append(NSRange(location: goroutineKeyOffset, length: ("goroutine" as NSString).length))
+        parts.append("goroutine=\(goroutineInfo)")
+
+        return (
+            FormatResult(
+                text: parts.joined(separator: " "),
+                level: .panic,
+                levelNSRange: levelNSRange,
+                messageNSRange: messageNSRange,
+                keyNSRanges: keyNSRanges,
+                stackTrace: frames.isEmpty ? nil : frames
+            ),
+            consumed
+        )
     }
 
     static func parseStackTrace(_ raw: String) -> [StackFrame]? {

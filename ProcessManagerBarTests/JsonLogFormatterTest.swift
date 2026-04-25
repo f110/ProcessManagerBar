@@ -232,4 +232,144 @@ class JsonLogFormatterTest: XCTestCase {
         XCTAssertTrue(msgIndex < fooIndex)
         XCTAssertTrue(fooIndex < callerIndex)
     }
+
+    // MARK: - Go panic parsing tests
+
+    func testParsePanicBasic() {
+        let lines = [
+            "panic: panic!",
+            "",
+            "goroutine 40 [running]:",
+            "main.(*SimpleHTTPServer).init(0x3?, {0x0?, 0x0?})",
+            "    cmd/simple-http-server/server.go:74 +0x24c",
+            "go.f110.dev/mono/go/fsm.(*FSM).Loop.func3()",
+            "    go/fsm/fsm.go:140 +0x54",
+            "created by go.f110.dev/mono/go/fsm.(*FSM).Loop in goroutine 1",
+            "    go/fsm/fsm.go:139 +0x9c",
+        ]
+        let parsed = JsonLogFormatter().parsePanic(lines: lines, startIndex: 0)
+        XCTAssertNotNil(parsed)
+        XCTAssertEqual(parsed?.consumedLines, 9)
+        XCTAssertEqual(parsed?.result.level, .panic)
+        XCTAssertTrue(parsed?.result.text.contains("│PNC│") ?? false)
+        XCTAssertTrue(parsed?.result.text.contains("panic!") ?? false)
+        XCTAssertTrue(parsed?.result.text.contains("goroutine=40 [running]") ?? false)
+
+        let frames = parsed!.result.stackTrace!
+        XCTAssertEqual(frames.count, 3)
+        XCTAssertEqual(frames[0].functionName, "main.(*SimpleHTTPServer).init(0x3?, {0x0?, 0x0?})")
+        XCTAssertEqual(frames[0].filePath, "cmd/simple-http-server/server.go")
+        XCTAssertEqual(frames[0].line, "74")
+        XCTAssertEqual(frames[1].functionName, "go.f110.dev/mono/go/fsm.(*FSM).Loop.func3()")
+        XCTAssertEqual(frames[1].filePath, "go/fsm/fsm.go")
+        XCTAssertEqual(frames[1].line, "140")
+        XCTAssertEqual(frames[2].functionName, "created by go.f110.dev/mono/go/fsm.(*FSM).Loop in goroutine 1")
+        XCTAssertEqual(frames[2].filePath, "go/fsm/fsm.go")
+        XCTAssertEqual(frames[2].line, "139")
+    }
+
+    func testParsePanicReturnsNilForJsonLine() {
+        let lines = [#"{"msg":"panic: not really"}"#]
+        XCTAssertNil(JsonLogFormatter.parsePanic(lines: lines, startIndex: 0))
+    }
+
+    func testParsePanicReturnsNilForPlainLine() {
+        let lines = ["just an info line"]
+        XCTAssertNil(JsonLogFormatter.parsePanic(lines: lines, startIndex: 0))
+    }
+
+    func testParsePanicRequiresGoroutineHeader() {
+        // "panic:" alone without a following goroutine header is not a Go panic
+        let lines = ["panic: something happened", "next log line"]
+        XCTAssertNil(JsonLogFormatter.parsePanic(lines: lines, startIndex: 0))
+    }
+
+    func testParsePanicStopsAtNextJsonLine() {
+        let lines = [
+            "panic: oops",
+            "",
+            "goroutine 1 [running]:",
+            "main.foo()",
+            "    main.go:10 +0x1",
+            #"{"msg":"after panic"}"#,
+        ]
+        let parsed = JsonLogFormatter().parsePanic(lines: lines, startIndex: 0)
+        XCTAssertNotNil(parsed)
+        XCTAssertEqual(parsed?.consumedLines, 5)
+        XCTAssertEqual(parsed?.result.stackTrace?.count, 1)
+    }
+
+    func testParsePanicHandlesGoroutineWithComplexState() {
+        let lines = [
+            "panic: oops",
+            "goroutine 7 [chan receive, 5 minutes]:",
+            "main.foo()",
+            "    main.go:10 +0x1",
+        ]
+        let parsed = JsonLogFormatter().parsePanic(lines: lines, startIndex: 0)
+        XCTAssertNotNil(parsed)
+        XCTAssertTrue(parsed?.result.text.contains("goroutine=7 [chan receive, 5 minutes]") ?? false)
+    }
+
+    func testParsePanicTabIndentedFileLine() {
+        // gofmt-style tab indentation
+        let lines = [
+            "panic: oops",
+            "goroutine 1 [running]:",
+            "main.foo()",
+            "\t/path/to/main.go:10 +0x1",
+        ]
+        let parsed = JsonLogFormatter().parsePanic(lines: lines, startIndex: 0)
+        XCTAssertNotNil(parsed)
+        XCTAssertEqual(parsed?.result.stackTrace?.count, 1)
+        XCTAssertEqual(parsed?.result.stackTrace?[0].filePath, "/path/to/main.go")
+        XCTAssertEqual(parsed?.result.stackTrace?[0].line, "10")
+    }
+
+    func testParsePanicStopsAtNonIndentedLogLine() {
+        // After the last frame's file line, a normal (non-indented) log line
+        // must NOT be consumed as a function-only frame.
+        let lines = [
+            "panic: oops",
+            "goroutine 1 [running]:",
+            "main.foo()",
+            "    main.go:10 +0x1",
+            "2026-04-25 12:00:00 next normal log line",
+            "another normal line",
+        ]
+        let parsed = JsonLogFormatter().parsePanic(lines: lines, startIndex: 0)
+        XCTAssertNotNil(parsed)
+        XCTAssertEqual(parsed?.consumedLines, 4, "Trailing non-indented log lines must not be consumed")
+        XCTAssertEqual(parsed?.result.stackTrace?.count, 1)
+    }
+
+    func testParsePanicTimestampIsCachedAcrossCalls() {
+        let lines = [
+            "panic: oops",
+            "goroutine 1 [running]:",
+            "main.foo()",
+            "    main.go:10 +0x1",
+        ]
+        let fmt = JsonLogFormatter()
+        let first = fmt.parsePanic(lines: lines, startIndex: 0)
+        // Extract the leading "MMM dd HH:mm:ss.SSS" timestamp from the rendered text.
+        let firstPrefix = String(first!.result.text.prefix(19))
+        Thread.sleep(forTimeInterval: 0.05)
+        let second = fmt.parsePanic(lines: lines, startIndex: 0)
+        let secondPrefix = String(second!.result.text.prefix(19))
+        XCTAssertEqual(firstPrefix, secondPrefix, "Timestamp should be stable across re-renders")
+    }
+
+    func testParsePanicAtNonZeroIndex() {
+        let lines = [
+            "some prior line",
+            "panic: boom",
+            "goroutine 1 [running]:",
+            "main.foo()",
+            "    main.go:10 +0x1",
+        ]
+        let parsed = JsonLogFormatter.parsePanic(lines: lines, startIndex: 1)
+        XCTAssertNotNil(parsed)
+        XCTAssertEqual(parsed?.consumedLines, 4)
+    }
 }
