@@ -1,0 +1,76 @@
+edition = "2024";
+package process;
+
+import "google/protobuf/go_features.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "go.f110.dev/ProcessManagerBar/proto";
+option features.(pb.go).api_level = API_OPAQUE;
+option features.field_presence = EXPLICIT;
+
+service ProcessManager {
+  rpc Status(RequestStatus) returns (ResponseStatus);
+  rpc Start(RequestStart) returns (ResponseStart);
+  rpc Stop(RequestStop) returns (ResponseStop);
+  rpc Restart(RequestRestart) returns (ResponseRestart);
+  rpc Logs(RequestLogs) returns (ResponseLogs);
+  rpc WatchLogs(RequestWatchLogs) returns (stream ResponseWatchLogs);
+}
+
+enum ProcessState {
+  PROCESS_STATE_UNKNOWN = 0;
+  PROCESS_STATE_STOP = 1;
+  PROCESS_STATE_RUNNING = 2;
+}
+
+message Process {
+  string name = 1;
+  repeated string command = 2;
+  string dir = 3;
+  string log_file = 4;
+  bool watch = 5;
+}
+
+message ProcessStatus {
+  string name = 1;
+  google.protobuf.Timestamp started_at = 2;
+  ProcessState state = 3;
+}
+
+message RequestStatus {
+  string name = 1;
+}
+
+message ResponseStatus {
+  repeated ProcessStatus processes = 1;
+}
+
+message RequestStart {
+  string name = 1;
+}
+
+message ResponseStart {
+  bool ok = 1;
+}
+
+message RequestStop {
+  string name = 1;
+}
+
+message ResponseStop {
+  bool ok = 1;
+}
+
+message RequestRestart {
+  string name = 1;
+}
+
+message ResponseRestart {}
+
+message RequestLogs {}
+
+message ResponseLogs {}
+
+message RequestWatchLogs {}
+
+message ResponseWatchLogs {}
