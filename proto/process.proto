@@ -67,10 +67,18 @@ message RequestRestart {
 
 message ResponseRestart {}
 
-message RequestLogs {}
+message RequestLogs {
+  string name = 1;
+}
 
-message ResponseLogs {}
+message ResponseLogs {
+  bytes content = 1;
+}
 
-message RequestWatchLogs {}
+message RequestWatchLogs {
+  string name = 1;
+}
 
-message ResponseWatchLogs {}
+message ResponseWatchLogs {
+  bytes content = 1;
+}

@@ -954,9 +954,12 @@ func (b0 ResponseRestart_builder) Build() *ResponseRestart {
 }
 
 type RequestLogs struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RequestLogs) Reset() {
@@ -984,22 +987,57 @@ func (x *RequestLogs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *RequestLogs) GetName() string {
+	if x != nil {
+		if x.xxx_hidden_Name != nil {
+			return *x.xxx_hidden_Name
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *RequestLogs) SetName(v string) {
+	x.xxx_hidden_Name = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *RequestLogs) HasName() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *RequestLogs) ClearName() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Name = nil
+}
+
 type RequestLogs_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	Name *string
 }
 
 func (b0 RequestLogs_builder) Build() *RequestLogs {
 	m0 := &RequestLogs{}
 	b, x := &b0, m0
 	_, _ = b, x
+	if b.Name != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_Name = b.Name
+	}
 	return m0
 }
 
 type ResponseLogs struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Content     []byte                 `protobuf:"bytes,1,opt,name=content"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ResponseLogs) Reset() {
@@ -1027,22 +1065,57 @@ func (x *ResponseLogs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *ResponseLogs) GetContent() []byte {
+	if x != nil {
+		return x.xxx_hidden_Content
+	}
+	return nil
+}
+
+func (x *ResponseLogs) SetContent(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Content = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *ResponseLogs) HasContent() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *ResponseLogs) ClearContent() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Content = nil
+}
+
 type ResponseLogs_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	Content []byte
 }
 
 func (b0 ResponseLogs_builder) Build() *ResponseLogs {
 	m0 := &ResponseLogs{}
 	b, x := &b0, m0
 	_, _ = b, x
+	if b.Content != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_Content = b.Content
+	}
 	return m0
 }
 
 type RequestWatchLogs struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *RequestWatchLogs) Reset() {
@@ -1070,22 +1143,57 @@ func (x *RequestWatchLogs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *RequestWatchLogs) GetName() string {
+	if x != nil {
+		if x.xxx_hidden_Name != nil {
+			return *x.xxx_hidden_Name
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *RequestWatchLogs) SetName(v string) {
+	x.xxx_hidden_Name = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *RequestWatchLogs) HasName() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *RequestWatchLogs) ClearName() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Name = nil
+}
+
 type RequestWatchLogs_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	Name *string
 }
 
 func (b0 RequestWatchLogs_builder) Build() *RequestWatchLogs {
 	m0 := &RequestWatchLogs{}
 	b, x := &b0, m0
 	_, _ = b, x
+	if b.Name != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_Name = b.Name
+	}
 	return m0
 }
 
 type ResponseWatchLogs struct {
-	state         protoimpl.MessageState `protogen:"opaque.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Content     []byte                 `protobuf:"bytes,1,opt,name=content"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *ResponseWatchLogs) Reset() {
@@ -1113,15 +1221,47 @@ func (x *ResponseWatchLogs) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
+func (x *ResponseWatchLogs) GetContent() []byte {
+	if x != nil {
+		return x.xxx_hidden_Content
+	}
+	return nil
+}
+
+func (x *ResponseWatchLogs) SetContent(v []byte) {
+	if v == nil {
+		v = []byte{}
+	}
+	x.xxx_hidden_Content = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *ResponseWatchLogs) HasContent() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *ResponseWatchLogs) ClearContent() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Content = nil
+}
+
 type ResponseWatchLogs_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
+	Content []byte
 }
 
 func (b0 ResponseWatchLogs_builder) Build() *ResponseWatchLogs {
 	m0 := &ResponseWatchLogs{}
 	b, x := &b0, m0
 	_, _ = b, x
+	if b.Content != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_Content = b.Content
+	}
 	return m0
 }
 
@@ -1155,11 +1295,15 @@ const file_proto_process_proto_rawDesc = "" +
 	"\x02ok\x18\x01 \x01(\bR\x02ok\"$\n" +
 	"\x0eRequestRestart\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"\x11\n" +
-	"\x0fResponseRestart\"\r\n" +
-	"\vRequestLogs\"\x0e\n" +
-	"\fResponseLogs\"\x12\n" +
-	"\x10RequestWatchLogs\"\x13\n" +
-	"\x11ResponseWatchLogs*\\\n" +
+	"\x0fResponseRestart\"!\n" +
+	"\vRequestLogs\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"(\n" +
+	"\fResponseLogs\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\"&\n" +
+	"\x10RequestWatchLogs\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"-\n" +
+	"\x11ResponseWatchLogs\x12\x18\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent*\\\n" +
 	"\fProcessState\x12\x19\n" +
 	"\x15PROCESS_STATE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12PROCESS_STATE_STOP\x10\x01\x12\x19\n" +
