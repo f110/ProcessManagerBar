@@ -19,12 +19,14 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
 }
 
 struct Configuration: Codable {
-    var processes: [ProcessConfig]
+    var processes: [ProcessConfig]?
     var maxLogLines: Int?
+    var server: String?
 
     enum CodingKeys: String, CodingKey {
         case processes
         case maxLogLines = "max_log_lines"
+        case server
     }
 
     static let defaultMaxLogLines = 1000

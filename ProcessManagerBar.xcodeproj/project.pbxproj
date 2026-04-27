@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		34A606042F38B2F300D32A92 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = 34A606032F38B2F300D32A92 /* Yams */; };
+		34A900012F40000000000001 /* SwiftProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 34A800012F40000000000001 /* SwiftProtobuf */; };
+		34A900022F40000000000002 /* GRPCCore in Frameworks */ = {isa = PBXBuildFile; productRef = 34A800022F40000000000002 /* GRPCCore */; };
+		34A900032F40000000000003 /* GRPCNIOTransportHTTP2 in Frameworks */ = {isa = PBXBuildFile; productRef = 34A800032F40000000000003 /* GRPCNIOTransportHTTP2 */; };
+		34A900042F40000000000004 /* GRPCProtobuf in Frameworks */ = {isa = PBXBuildFile; productRef = 34A800042F40000000000004 /* GRPCProtobuf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +61,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				34A606042F38B2F300D32A92 /* Yams in Frameworks */,
+				34A900012F40000000000001 /* SwiftProtobuf in Frameworks */,
+				34A900022F40000000000002 /* GRPCCore in Frameworks */,
+				34A900032F40000000000003 /* GRPCNIOTransportHTTP2 in Frameworks */,
+				34A900042F40000000000004 /* GRPCProtobuf in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +126,10 @@
 			name = ProcessManagerBar;
 			packageProductDependencies = (
 				34A606032F38B2F300D32A92 /* Yams */,
+				34A800012F40000000000001 /* SwiftProtobuf */,
+				34A800022F40000000000002 /* GRPCCore */,
+				34A800032F40000000000003 /* GRPCNIOTransportHTTP2 */,
+				34A800042F40000000000004 /* GRPCProtobuf */,
 			);
 			productName = ProcessManagerBar;
 			productReference = 3414B5BA2F35FDBF00D1B2ED /* ProcessManagerBar.app */;
@@ -203,6 +215,10 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				34A605FB2F37640900D32A92 /* XCRemoteSwiftPackageReference "Yams" */,
+				34A700012F40000000000001 /* XCRemoteSwiftPackageReference "swift-protobuf" */,
+				34A700022F40000000000002 /* XCRemoteSwiftPackageReference "grpc-swift-2" */,
+				34A700032F40000000000003 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */,
+				34A700042F40000000000004 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3414B5BB2F35FDBF00D1B2ED /* Products */;
@@ -331,7 +347,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -388,7 +404,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = macosx;
@@ -453,7 +469,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.f110.ProcessManagerBarTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -470,7 +486,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MACOSX_DEPLOYMENT_TARGET = 14.7;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = dev.f110.ProcessManagerBarTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -560,6 +576,38 @@
 				minimumVersion = 6.2.1;
 			};
 		};
+		34A700012F40000000000001 /* XCRemoteSwiftPackageReference "swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-protobuf.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.29.0;
+			};
+		};
+		34A700022F40000000000002 /* XCRemoteSwiftPackageReference "grpc-swift-2" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-2.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+		34A700032F40000000000003 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-nio-transport.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+		34A700042F40000000000004 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/grpc/grpc-swift-protobuf.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -567,6 +615,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 34A605FB2F37640900D32A92 /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
+		};
+		34A800012F40000000000001 /* SwiftProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 34A700012F40000000000001 /* XCRemoteSwiftPackageReference "swift-protobuf" */;
+			productName = SwiftProtobuf;
+		};
+		34A800022F40000000000002 /* GRPCCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 34A700022F40000000000002 /* XCRemoteSwiftPackageReference "grpc-swift-2" */;
+			productName = GRPCCore;
+		};
+		34A800032F40000000000003 /* GRPCNIOTransportHTTP2 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 34A700032F40000000000003 /* XCRemoteSwiftPackageReference "grpc-swift-nio-transport" */;
+			productName = GRPCNIOTransportHTTP2;
+		};
+		34A800042F40000000000004 /* GRPCProtobuf */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 34A700042F40000000000004 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */;
+			productName = GRPCProtobuf;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -57,8 +57,6 @@ func processManager() error {
 				close(serverErrCh)
 			}()
 
-			mgr.StartAll()
-
 			select {
 			case <-cmd.Context().Done():
 				log.Printf("shutting down")

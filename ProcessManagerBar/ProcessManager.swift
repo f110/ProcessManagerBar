@@ -34,16 +34,27 @@ class ManagedProcess: ObservableObject, Identifiable {
     var maxLogLines: Int = Configuration.defaultMaxLogLines
     let jsonLogFormatter: JsonLogFormatter = JsonLogFormatter()
 
-    private var process: Process?
-    private var logFileHandle: FileHandle?
-    private var stdoutPipe: Pipe?
-    private var stderrPipe: Pipe?
-    private var eventStream: FSEventStreamRef?
-    private var isRestarting = false
+    init(config: ProcessConfig) {
+        self.config = config
+    }
 
-    private static let ignoredDirNames: Set<String> = [
+    func start() {}
+    func stop() {}
+    func restart() {}
+    func markNeedsRestart() {
+        if state == .running {
+            state = .needsRestart
+        }
+    }
+
+    static let ignoredDirNames: Set<String> = [
         ".git", "node_modules", "vendor", ".build", "__pycache__", ".svn", ".hg",
     ]
+
+    static func expandTilde(_ path: String) -> String {
+        guard path.hasPrefix("~") else { return path }
+        return (path as NSString).expandingTildeInPath
+    }
 
     static func trimLog(_ log: inout String, maxLines: Int) {
         guard maxLines > 0 else { return }
@@ -64,17 +75,19 @@ class ManagedProcess: ObservableObject, Identifiable {
             idx = log.index(after: idx)
         }
     }
+}
 
-    init(config: ProcessConfig) {
-        self.config = config
-    }
+// MARK: - Local Managed Process
 
-    static func expandTilde(_ path: String) -> String {
-        guard path.hasPrefix("~") else { return path }
-        return (path as NSString).expandingTildeInPath
-    }
+final class LocalManagedProcess: ManagedProcess {
+    private var process: Process?
+    private var logFileHandle: FileHandle?
+    private var stdoutPipe: Pipe?
+    private var stderrPipe: Pipe?
+    private var eventStream: FSEventStreamRef?
+    private var isRestarting = false
 
-    func start() {
+    override func start() {
         guard state != .running else { return }
 
         guard !config.command.isEmpty else {
@@ -87,7 +100,6 @@ class ManagedProcess: ObservableObject, Identifiable {
         let resolvedPath: String
 
         if executable.contains("/") {
-            // Absolute or relative path — use as-is
             let fullPath = executable.hasPrefix("/")
                 ? executable
                 : (expandedDir as NSString).appendingPathComponent(executable)
@@ -97,7 +109,6 @@ class ManagedProcess: ObservableObject, Identifiable {
             }
             resolvedPath = fullPath
         } else {
-            // Look up in PATH
             guard let found = ShellEnvironment.shared.resolveExecutable(executable) else {
                 state = .error("実行ファイルが見つかりません: \(executable)")
                 return
@@ -113,7 +124,6 @@ class ManagedProcess: ObservableObject, Identifiable {
         proc.currentDirectoryURL = URL(fileURLWithPath: expandedDir)
         proc.environment = ShellEnvironment.shared.environment
 
-        // Set up log file if configured
         if let logPath = config.logFile {
             let expandedPath = Self.expandTilde(logPath)
             let logURL = URL(fileURLWithPath: expandedPath)
@@ -128,7 +138,6 @@ class ManagedProcess: ObservableObject, Identifiable {
             }
         }
 
-        // Capture stdout and stderr via pipes
         let outPipe = Pipe()
         let errPipe = Pipe()
         self.stdoutPipe = outPipe
@@ -142,7 +151,7 @@ class ManagedProcess: ObservableObject, Identifiable {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.logOutput.append(text)
-                Self.trimLog(&self.logOutput, maxLines: self.maxLogLines)
+                ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
             }
             self?.logFileHandle?.write(data)
         }
@@ -184,7 +193,6 @@ class ManagedProcess: ObservableObject, Identifiable {
 
         do {
             try proc.run()
-            // 子プロセスをアプリと同じプロセスグループに移動する
             let childPid = proc.processIdentifier
             let myPgid = getpgrp()
             setpgid(childPid, myPgid)
@@ -199,7 +207,7 @@ class ManagedProcess: ObservableObject, Identifiable {
         }
     }
 
-    func stop() {
+    override func stop() {
         AppLogger.shared.log("[\(config.name)] stopping process")
         stopFileWatching()
         guard let proc = process, proc.isRunning else {
@@ -209,7 +217,7 @@ class ManagedProcess: ObservableObject, Identifiable {
         terminateProcess(proc)
     }
 
-    func restart() {
+    override func restart() {
         AppLogger.shared.log("[\(config.name)] restarting process")
         stopFileWatching()
         guard let proc = process, proc.isRunning else {
@@ -233,12 +241,6 @@ class ManagedProcess: ObservableObject, Identifiable {
         }
     }
 
-    func markNeedsRestart() {
-        if state == .running {
-            state = .needsRestart
-        }
-    }
-
     // MARK: - File Watching (FSEvents)
 
     private func startFileWatching() {
@@ -259,7 +261,7 @@ class ManagedProcess: ObservableObject, Identifiable {
             streamRef, clientCallbackInfo, numEvents, eventPaths, eventFlags, eventIds
         ) in
             guard let info = clientCallbackInfo else { return }
-            let process = Unmanaged<ManagedProcess>.fromOpaque(info).takeUnretainedValue()
+            let process = Unmanaged<LocalManagedProcess>.fromOpaque(info).takeUnretainedValue()
 
             let paths = Unmanaged<CFArray>.fromOpaque(eventPaths).takeUnretainedValue() as! [String]
             let flags = Array(UnsafeBufferPointer(start: eventFlags, count: numEvents))
@@ -317,6 +319,80 @@ class ManagedProcess: ObservableObject, Identifiable {
     }
 }
 
+// MARK: - Remote Managed Process
+
+@available(macOS 15.0, *)
+final class RemoteManagedProcess: ManagedProcess {
+    private weak var client: RemoteProcessClient?
+    private var watchTask: Task<Void, Never>?
+
+    init(config: ProcessConfig, client: RemoteProcessClient) {
+        self.client = client
+        super.init(config: config)
+        watchTask = Task { [weak self] in
+            guard let self = self, let client = self.client else { return }
+            await client.streamLogs(name: self.config.name) { [weak self] chunk in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    self.logOutput.append(chunk)
+                    ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
+                }
+            }
+        }
+    }
+
+    override func start() {
+        guard let client = client else { return }
+        Task {
+            do {
+                try await client.start(name: config.name)
+            } catch {
+                await MainActor.run {
+                    AppLogger.shared.log("[\(self.config.name)] start failed: \(error)")
+                }
+            }
+        }
+    }
+
+    override func stop() {
+        guard let client = client else { return }
+        Task {
+            do {
+                try await client.stop(name: config.name)
+            } catch {
+                await MainActor.run {
+                    AppLogger.shared.log("[\(self.config.name)] stop failed: \(error)")
+                }
+            }
+        }
+    }
+
+    override func restart() {
+        guard let client = client else { return }
+        Task {
+            do {
+                try await client.restart(name: config.name)
+            } catch {
+                await MainActor.run {
+                    AppLogger.shared.log("[\(self.config.name)] restart failed: \(error)")
+                }
+            }
+        }
+    }
+
+    func applyRemoteState(_ remote: ProcessState) {
+        // Preserve needsRestart locally if user marked it; otherwise mirror remote.
+        if state == .needsRestart && remote == .running {
+            return
+        }
+        state = remote
+    }
+
+    deinit {
+        watchTask?.cancel()
+    }
+}
+
 // MARK: - App Logger
 
 class AppLogger: ObservableObject {
@@ -337,6 +413,13 @@ class AppLogger: ObservableObject {
         let line = "\(timestamp) \(message)\n"
         DispatchQueue.main.async {
             self.logOutput.append(line)
+            ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
+        }
+    }
+
+    func appendRemoteSystemLog(_ chunk: String) {
+        DispatchQueue.main.async {
+            self.logOutput.append(chunk)
             ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
         }
     }
@@ -420,16 +503,19 @@ class ProcessSupervisor: ObservableObject {
     }
 
     private var cancellables = Set<AnyCancellable>()
+    private var remoteClient: AnyObject?
+    private var remoteRunTask: Task<Void, Never>?
+    private var remotePollTask: Task<Void, Never>?
+    private var remoteSystemLogTask: Task<Void, Never>?
+    private var pendingRemoteTeardown: Task<Void, Never>?
 
     init() {
-        // Trigger ShellEnvironment initialization early
         _ = ShellEnvironment.shared
 
         if let savedPath = UserDefaults.standard.string(forKey: "configFilePath") {
             let url = URL(fileURLWithPath: savedPath)
             if FileManager.default.fileExists(atPath: savedPath) {
                 self.configFileURL = url
-                loadConfiguration()
             }
         }
     }
@@ -442,20 +528,33 @@ class ProcessSupervisor: ObservableObject {
             let maxLogLines = config.maxLogLines ?? Configuration.defaultMaxLogLines
             AppLogger.shared.maxLogLines = maxLogLines
 
+            if let server = config.server, !server.isEmpty {
+                if #available(macOS 15.0, *) {
+                    loadRemoteConfiguration(server: server, maxLogLines: maxLogLines)
+                } else {
+                    AppLogger.shared.log("remote mode requires macOS 15.0+")
+                }
+                return
+            }
+
+            // Local mode: tear down any prior remote state.
+            tearDownRemote()
+
             let oldProcesses = processes
+            let configProcesses = config.processes ?? []
             for proc in oldProcesses {
-                if !config.processes.contains(where: { $0.name == proc.config.name }) {
+                if !configProcesses.contains(where: { $0.name == proc.config.name }) {
                     proc.stop()
                 }
             }
 
             var newProcesses: [ManagedProcess] = []
-            for procConfig in config.processes {
+            for procConfig in configProcesses {
                 if let existing = oldProcesses.first(where: { $0.config.name == procConfig.name && $0.config == procConfig }) {
                     newProcesses.append(existing)
                 } else {
                     oldProcesses.first(where: { $0.config.name == procConfig.name })?.stop()
-                    let managed = ManagedProcess(config: procConfig)
+                    let managed = LocalManagedProcess(config: procConfig)
                     newProcesses.append(managed)
                 }
             }
@@ -472,6 +571,103 @@ class ProcessSupervisor: ObservableObject {
         }
     }
 
+    @available(macOS 15.0, *)
+    private func loadRemoteConfiguration(server: String, maxLogLines: Int) {
+        for proc in processes {
+            proc.stop()
+        }
+        processes = []
+        observeProcesses()
+
+        tearDownRemote()
+        let priorTeardown = pendingRemoteTeardown
+
+        let client = RemoteProcessClient(server: server)
+        remoteClient = client
+        AppLogger.shared.log("remote mode: connecting to \(server)")
+
+        remoteRunTask = Task {
+            await priorTeardown?.value
+            await client.run()
+        }
+
+        remoteSystemLogTask = Task {
+            await priorTeardown?.value
+            await client.streamLogs(name: "") { chunk in
+                AppLogger.shared.appendRemoteSystemLog(chunk)
+            }
+        }
+
+        remotePollTask = Task { [weak self] in
+            await priorTeardown?.value
+            while !Task.isCancelled {
+                do {
+                    let statuses = try await client.fetchStatus()
+                    await MainActor.run { [weak self] in
+                        self?.applyRemoteStatuses(statuses, client: client, maxLogLines: maxLogLines)
+                    }
+                } catch {
+                    await MainActor.run {
+                        AppLogger.shared.log("remote status fetch failed: \(error)")
+                    }
+                }
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+    }
+
+    @available(macOS 15.0, *)
+    private func applyRemoteStatuses(_ statuses: [RemoteProcessStatus], client: RemoteProcessClient, maxLogLines: Int) {
+        var byName = [String: RemoteManagedProcess]()
+        for proc in processes {
+            if let remote = proc as? RemoteManagedProcess {
+                byName[proc.config.name] = remote
+            }
+        }
+
+        var next: [ManagedProcess] = []
+        for status in statuses {
+            let proc: RemoteManagedProcess
+            if let existing = byName.removeValue(forKey: status.name) {
+                proc = existing
+            } else {
+                let cfg = ProcessConfig(name: status.name, command: [], dir: "", logFile: nil, jsonLog: nil, watch: nil)
+                proc = RemoteManagedProcess(config: cfg, client: client)
+            }
+            proc.maxLogLines = maxLogLines
+            proc.applyRemoteState(status.state)
+            next.append(proc)
+        }
+
+        processes = next
+        observeProcesses()
+    }
+
+    private func tearDownRemote() {
+        let pollTask = remotePollTask
+        let logTask = remoteSystemLogTask
+        let runTask = remoteRunTask
+        let prior = remoteClient
+        remotePollTask = nil
+        remoteSystemLogTask = nil
+        remoteRunTask = nil
+        remoteClient = nil
+
+        pollTask?.cancel()
+        logTask?.cancel()
+
+        let priorTeardown = pendingRemoteTeardown
+        pendingRemoteTeardown = Task { [pollTask, logTask, runTask, prior] in
+            await priorTeardown?.value
+            if #available(macOS 15.0, *), let client = prior as? RemoteProcessClient {
+                await client.shutdown()
+            }
+            await pollTask?.value
+            await logTask?.value
+            await runTask?.value
+        }
+    }
+
     func startAll() {
         for proc in processes {
             if proc.state == .stopped {
@@ -482,6 +678,9 @@ class ProcessSupervisor: ObservableObject {
 
     func stopAll() {
         for proc in processes {
+            if #available(macOS 15.0, *), proc is RemoteManagedProcess {
+                continue
+            }
             proc.stop()
         }
     }
@@ -506,5 +705,6 @@ class ProcessSupervisor: ObservableObject {
 
     deinit {
         stopAll()
+        tearDownRemote()
     }
 }
