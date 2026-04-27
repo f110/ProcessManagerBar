@@ -349,11 +349,11 @@ struct LogContentView: NSViewRepresentable {
         textView.isRichText = true
         textView.drawsBackground = true
         textView.backgroundColor = .textBackgroundColor
-        textView.isHorizontallyResizable = true
+        textView.isHorizontallyResizable = false
         textView.isVerticallyResizable = true
-        textView.textContainer?.widthTracksTextView = false
-        textView.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        textView.autoresizingMask = [.width, .height]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        textView.autoresizingMask = [.width]
 
         let coordinator = context.coordinator
         textView.onStackTraceClick = { [weak coordinator] lineIndex in
@@ -373,7 +373,7 @@ struct LogContentView: NSViewRepresentable {
         let scrollView = NSScrollView()
         scrollView.documentView = textView
         scrollView.hasVerticalScroller = true
-        scrollView.hasHorizontalScroller = true
+        scrollView.hasHorizontalScroller = false
         scrollView.autohidesScrollers = true
 
         context.coordinator.textView = textView
