@@ -14,7 +14,6 @@ type ProcessConfig struct {
 	Command []string `yaml:"command"`
 	Dir     string   `yaml:"dir"`
 	LogFile string   `yaml:"log_file,omitempty"`
-	JsonLog bool     `yaml:"json_log,omitempty"`
 	Watch   bool     `yaml:"watch,omitempty"`
 }
 

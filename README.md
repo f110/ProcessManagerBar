@@ -15,7 +15,6 @@ processes:
     command: ["go", "run", "./cmd/server"]
     dir: /path/to/project
     log_file: ~/logs/server.log
-    json_log: true
     watch: true
 ```
 
@@ -34,7 +33,6 @@ processes:
 | `command` | string[] | Yes | Command and arguments to execute |
 | `dir` | string | Yes | Working directory |
 | `log_file` | string | No | Log file path |
-| `json_log` | bool | No | Parse logs as JSON (default: `false`) |
 | `watch` | bool | No | Auto-restart on file changes in `dir` (default: `false`) |
 
 ### Notes
@@ -50,7 +48,6 @@ processes:
   - name: api-server
     command: ["bazel", "run", "//cmd/server", "--", "--config", "$DIR/debug.conf", "--log-encoding", "json"]
     dir: /Users/me/project
-    json_log: true
     watch: true
 
   - name: worker

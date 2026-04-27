@@ -6,7 +6,6 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
     var command: [String]
     var dir: String
     var logFile: String?
-    var jsonLog: Bool?
     var watch: Bool?
 
     var id: String { name }
@@ -14,7 +13,6 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
     enum CodingKeys: String, CodingKey {
         case name, command, dir, watch
         case logFile = "log_file"
-        case jsonLog = "json_log"
     }
 }
 

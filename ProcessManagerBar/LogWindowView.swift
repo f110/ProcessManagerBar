@@ -11,6 +11,7 @@ struct LogWindowView: View {
     @State private var isPaletteVisible = false
     @State private var paletteText = ""
     @State private var paletteSelectedIndex = 0
+    @State private var jsonParseEnabledByTab: [String: Bool] = [:]
 
     private let appTabId = "__app__"
 
@@ -34,6 +35,19 @@ struct LogWindowView: View {
         isPaletteVisible = false
         paletteText = ""
         paletteSelectedIndex = 0
+    }
+
+    private var jsonParseBinding: Binding<Bool> {
+        Binding(
+            get: {
+                guard let tab = selectedTab, tab != appTabId else { return false }
+                return jsonParseEnabledByTab[tab] ?? false
+            },
+            set: { newValue in
+                guard let tab = selectedTab, tab != appTabId else { return }
+                jsonParseEnabledByTab[tab] = newValue
+            }
+        )
     }
 
     var body: some View {
@@ -77,43 +91,55 @@ struct LogWindowView: View {
     private var mainContent: some View {
         VStack(spacing: 0) {
             // Tab bar
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    // App log tab
-                    Button(action: {
-                        selectedTab = appTabId
-                        searchText = ""
-                        searchMatchIndex = 0
-                    }) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 9))
-                            Text("App")
-                                .font(.system(size: 12, weight: selectedTab == appTabId ? .semibold : .regular))
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(selectedTab == appTabId ? Color.accentColor.opacity(0.15) : Color.clear)
-                        )
-                        .foregroundColor(selectedTab == appTabId ? .accentColor : .primary)
-                    }
-                    .buttonStyle(.plain)
-
-                    ForEach(supervisor.processes) { proc in
-                        TabButton(
-                            title: proc.config.name,
-                            state: proc.state,
-                            isSelected: selectedTab == proc.id
-                        ) {
-                            selectedTab = proc.id
+            HStack(spacing: 0) {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        // App log tab
+                        Button(action: {
+                            selectedTab = appTabId
                             searchText = ""
                             searchMatchIndex = 0
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 9))
+                                Text("App")
+                                    .font(.system(size: 12, weight: selectedTab == appTabId ? .semibold : .regular))
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(selectedTab == appTabId ? Color.accentColor.opacity(0.15) : Color.clear)
+                            )
+                            .foregroundColor(selectedTab == appTabId ? .accentColor : .primary)
+                        }
+                        .buttonStyle(.plain)
+
+                        ForEach(supervisor.processes) { proc in
+                            TabButton(
+                                title: proc.config.name,
+                                state: proc.state,
+                                isSelected: selectedTab == proc.id
+                            ) {
+                                selectedTab = proc.id
+                                searchText = ""
+                                searchMatchIndex = 0
+                            }
                         }
                     }
+                    .padding(.horizontal, 8)
                 }
-                .padding(.horizontal, 8)
+
+                if selectedTab != appTabId, selectedTab != nil {
+                    Toggle(isOn: jsonParseBinding) {
+                        Text("JSON")
+                            .font(.system(size: 11))
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.mini)
+                    .padding(.trailing, 12)
+                }
             }
             .padding(.top, 8)
 
@@ -145,7 +171,7 @@ struct LogWindowView: View {
             } else if let proc = selectedProcess {
                 LogContentView(
                     logOutput: proc.logOutput,
-                    jsonLogFormatter: (proc.config.jsonLog ?? false) ? proc.jsonLogFormatter : nil,
+                    jsonLogFormatter: (jsonParseEnabledByTab[proc.id] ?? false) ? proc.jsonLogFormatter : nil,
                     searchText: searchText,
                     searchMatchIndex: searchMatchIndex
                 )
@@ -387,6 +413,7 @@ struct LogContentView: NSViewRepresentable {
         let textView = coordinator.textView!
 
         let logChanged = coordinator.lastLogOutput != logOutput
+        let formatterChanged = coordinator.lastFormatterEnabled != (jsonLogFormatter != nil)
         let searchChanged = coordinator.lastSearchText != searchText || coordinator.lastSearchMatchIndex != searchMatchIndex
 
         coordinator.currentLogOutput = logOutput
@@ -394,8 +421,9 @@ struct LogContentView: NSViewRepresentable {
         coordinator.currentSearchText = searchText
         coordinator.currentSearchMatchIndex = searchMatchIndex
 
-        if logChanged || coordinator.needsRebuild {
+        if logChanged || formatterChanged || coordinator.needsRebuild {
             coordinator.lastLogOutput = logOutput
+            coordinator.lastFormatterEnabled = jsonLogFormatter != nil
             coordinator.needsRebuild = false
 
             let wasAtBottom = coordinator.isScrolledToBottom()
@@ -410,7 +438,7 @@ struct LogContentView: NSViewRepresentable {
             }
         }
 
-        if searchChanged || logChanged {
+        if searchChanged || logChanged || formatterChanged {
             coordinator.lastSearchText = searchText
             coordinator.lastSearchMatchIndex = searchMatchIndex
             highlightSearch(in: textView)
@@ -425,6 +453,7 @@ struct LogContentView: NSViewRepresentable {
         var textView: ClickableLogTextView?
         var scrollView: NSScrollView?
         var lastLogOutput: String = ""
+        var lastFormatterEnabled: Bool = false
         var lastSearchText: String = ""
         var lastSearchMatchIndex: Int = 0
         var expandedStackTraces: Set<Int> = []
