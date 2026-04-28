@@ -55,6 +55,15 @@ struct ContentView: View {
             // Actions
             HStack(spacing: 8) {
                 Button {
+                    supervisor.startAll()
+                } label: {
+                    Text("全て起動")
+                        .font(.system(size: 12))
+                }
+                .controlSize(.small)
+                .disabled(!supervisor.hasStoppedProcesses)
+
+                Button {
                     supervisor.restartNeedingRestart()
                 } label: {
                     Text("全て再起動")

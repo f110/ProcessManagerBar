@@ -502,6 +502,10 @@ class ProcessSupervisor: ObservableObject {
         processes.contains { $0.state == .needsRestart }
     }
 
+    var hasStoppedProcesses: Bool {
+        processes.contains { $0.state == .stopped }
+    }
+
     private var cancellables = Set<AnyCancellable>()
     private var remoteClient: AnyObject?
     private var remoteRunTask: Task<Void, Never>?
