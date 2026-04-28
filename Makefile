@@ -19,3 +19,11 @@ ProcessManagerBar/Generated/process.grpc.swift: proto/process.proto
 	$(PROTOC) --grpc-swift-2_out=ProcessManagerBar/Generated --grpc-swift-2_opt=Visibility=Public,Client=true,Server=false $<
 	mv ProcessManagerBar/Generated/proto/process.grpc.swift $@
 	rmdir ProcessManagerBar/Generated/proto 2>/dev/null || true
+
+.PHONY: process-manager
+process-manager:
+	go build ./go/cmd/process-manager
+
+.PHONY: pmctl
+pmctl:
+	go build ./go/cmd/pmctl

@@ -2,3 +2,5 @@
 process.yaml
 /ProcessManagerBar.app
 /.build
+/process-manager
+/pmctl
