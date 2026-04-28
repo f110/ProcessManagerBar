@@ -596,8 +596,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/grpc/grpc-swift-nio-transport.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.0.0;
+				kind = exactVersion;
+				version = 2.4.5;
 			};
 		};
 		34A700042F40000000000004 /* XCRemoteSwiftPackageReference "grpc-swift-protobuf" */ = {
