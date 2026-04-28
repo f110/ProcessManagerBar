@@ -25,3 +25,4 @@ rm -rf "$REPO_ROOT/$SCHEME.app"
 cp -R "$BUILT_APP" "$REPO_ROOT/$SCHEME.app"
 
 echo "copied $SCHEME.app to $REPO_ROOT"
+make process-manager pmctl
