@@ -10,6 +10,7 @@ option features.field_presence = EXPLICIT;
 
 service ProcessManager {
   rpc Status(RequestStatus) returns (ResponseStatus);
+  rpc WatchStatus(RequestWatchStatus) returns (stream ResponseWatchStatus);
   rpc Start(RequestStart) returns (ResponseStart);
   rpc Stop(RequestStop) returns (ResponseStop);
   rpc Restart(RequestRestart) returns (ResponseRestart);
@@ -82,4 +83,10 @@ message RequestWatchLogs {
 
 message ResponseWatchLogs {
   bytes content = 1;
+}
+
+message RequestWatchStatus {}
+
+message ResponseWatchStatus {
+  repeated ProcessStatus processes = 1;
 }

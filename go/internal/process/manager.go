@@ -22,17 +22,21 @@ type Manager struct {
 	processes []*managedProcess
 	byName    map[string]*managedProcess
 	sysLog    *logSink
+
+	statusMu   sync.Mutex
+	statusSubs map[chan struct{}]struct{}
 }
 
 var _ proto.ProcessManagerServer = (*Manager)(nil)
 
 func NewManager(cfg *config.Configuration) *Manager {
 	m := &Manager{
-		byName: make(map[string]*managedProcess),
-		sysLog: newLogSink(cfg.MaxLogLines),
+		byName:     make(map[string]*managedProcess),
+		sysLog:     newLogSink(cfg.MaxLogLines),
+		statusSubs: make(map[chan struct{}]struct{}),
 	}
 	for _, pc := range cfg.Processes {
-		mp := newManagedProcess(pc, cfg.MaxLogLines)
+		mp := newManagedProcess(pc, cfg.MaxLogLines, m.notifyStatus)
 		m.processes = append(m.processes, mp)
 		m.byName[pc.Name] = mp
 	}
@@ -67,41 +71,99 @@ func (m *Manager) StopAll() {
 }
 
 func (m *Manager) Status(_ context.Context, req *proto.RequestStatus) (*proto.ResponseStatus, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	name := req.GetName()
-	var targets []*managedProcess
 	if name == "" {
-		targets = append([]*managedProcess(nil), m.processes...)
-	} else {
-		p, ok := m.byName[name]
-		if !ok {
-			return nil, status.Errorf(codes.NotFound, "process %q not found", name)
-		}
-		targets = []*managedProcess{p}
+		return proto.ResponseStatus_builder{Processes: m.buildStatuses()}.Build(), nil
+	}
+	p, err := m.lookup(name)
+	if err != nil {
+		return nil, err
+	}
+	return proto.ResponseStatus_builder{Processes: []*proto.ProcessStatus{m.statusFor(p)}}.Build(), nil
+}
+
+func (m *Manager) WatchStatus(_ *proto.RequestWatchStatus, stream grpc.ServerStreamingServer[proto.ResponseWatchStatus]) error {
+	ch, cancel := m.subscribeStatus()
+	defer cancel()
+
+	if err := stream.Send(proto.ResponseWatchStatus_builder{Processes: m.buildStatuses()}.Build()); err != nil {
+		return err
 	}
 
-	statuses := make([]*proto.ProcessStatus, 0, len(targets))
-	for _, p := range targets {
-		running, needsRestart, startedAt := p.State()
-		st := proto.ProcessState_PROCESS_STATE_STOP
-		if running {
-			st = proto.ProcessState_PROCESS_STATE_RUNNING
-			if needsRestart {
-				st = proto.ProcessState_PROCESS_STATE_NEEDS_RESTART
+	ctx := stream.Context()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case _, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(proto.ResponseWatchStatus_builder{Processes: m.buildStatuses()}.Build()); err != nil {
+				return err
 			}
 		}
-		ps := proto.ProcessStatus_builder{
-			Name:  new(p.Name()),
-			State: &st,
-		}
-		if !startedAt.IsZero() {
-			ps.StartedAt = timestamppb.New(startedAt)
-		}
-		statuses = append(statuses, ps.Build())
 	}
-	return proto.ResponseStatus_builder{Processes: statuses}.Build(), nil
+}
+
+func (m *Manager) statusFor(p *managedProcess) *proto.ProcessStatus {
+	running, needsRestart, startedAt := p.State()
+	st := proto.ProcessState_PROCESS_STATE_STOP
+	if running {
+		st = proto.ProcessState_PROCESS_STATE_RUNNING
+		if needsRestart {
+			st = proto.ProcessState_PROCESS_STATE_NEEDS_RESTART
+		}
+	}
+	ps := proto.ProcessStatus_builder{
+		Name:  new(p.Name()),
+		State: &st,
+	}
+	if !startedAt.IsZero() {
+		ps.StartedAt = timestamppb.New(startedAt)
+	}
+	return ps.Build()
+}
+
+func (m *Manager) buildStatuses() []*proto.ProcessStatus {
+	m.mu.RLock()
+	procs := append([]*managedProcess(nil), m.processes...)
+	m.mu.RUnlock()
+	out := make([]*proto.ProcessStatus, 0, len(procs))
+	for _, p := range procs {
+		out = append(out, m.statusFor(p))
+	}
+	return out
+}
+
+func (m *Manager) subscribeStatus() (<-chan struct{}, func()) {
+	ch := make(chan struct{}, 1)
+	m.statusMu.Lock()
+	m.statusSubs[ch] = struct{}{}
+	m.statusMu.Unlock()
+	cancel := func() {
+		m.statusMu.Lock()
+		if _, ok := m.statusSubs[ch]; ok {
+			delete(m.statusSubs, ch)
+			close(ch)
+		}
+		m.statusMu.Unlock()
+	}
+	return ch, cancel
+}
+
+// notifyStatus wakes every WatchStatus subscriber. The signal channel is
+// buffered to size one and we drop on full buffer so bursts of state changes
+// coalesce into a single push.
+func (m *Manager) notifyStatus() {
+	m.statusMu.Lock()
+	defer m.statusMu.Unlock()
+	for ch := range m.statusSubs {
+		select {
+		case ch <- struct{}{}:
+		default:
+		}
+	}
 }
 
 func (m *Manager) Start(_ context.Context, req *proto.RequestStart) (*proto.ResponseStart, error) {

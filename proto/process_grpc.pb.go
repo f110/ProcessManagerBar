@@ -19,12 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ProcessManager_Status_FullMethodName    = "/process.ProcessManager/Status"
-	ProcessManager_Start_FullMethodName     = "/process.ProcessManager/Start"
-	ProcessManager_Stop_FullMethodName      = "/process.ProcessManager/Stop"
-	ProcessManager_Restart_FullMethodName   = "/process.ProcessManager/Restart"
-	ProcessManager_Logs_FullMethodName      = "/process.ProcessManager/Logs"
-	ProcessManager_WatchLogs_FullMethodName = "/process.ProcessManager/WatchLogs"
+	ProcessManager_Status_FullMethodName      = "/process.ProcessManager/Status"
+	ProcessManager_WatchStatus_FullMethodName = "/process.ProcessManager/WatchStatus"
+	ProcessManager_Start_FullMethodName       = "/process.ProcessManager/Start"
+	ProcessManager_Stop_FullMethodName        = "/process.ProcessManager/Stop"
+	ProcessManager_Restart_FullMethodName     = "/process.ProcessManager/Restart"
+	ProcessManager_Logs_FullMethodName        = "/process.ProcessManager/Logs"
+	ProcessManager_WatchLogs_FullMethodName   = "/process.ProcessManager/WatchLogs"
 )
 
 // ProcessManagerClient is the client API for ProcessManager service.
@@ -32,6 +33,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ProcessManagerClient interface {
 	Status(ctx context.Context, in *RequestStatus, opts ...grpc.CallOption) (*ResponseStatus, error)
+	WatchStatus(ctx context.Context, in *RequestWatchStatus, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResponseWatchStatus], error)
 	Start(ctx context.Context, in *RequestStart, opts ...grpc.CallOption) (*ResponseStart, error)
 	Stop(ctx context.Context, in *RequestStop, opts ...grpc.CallOption) (*ResponseStop, error)
 	Restart(ctx context.Context, in *RequestRestart, opts ...grpc.CallOption) (*ResponseRestart, error)
@@ -56,6 +58,25 @@ func (c *processManagerClient) Status(ctx context.Context, in *RequestStatus, op
 	}
 	return out, nil
 }
+
+func (c *processManagerClient) WatchStatus(ctx context.Context, in *RequestWatchStatus, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResponseWatchStatus], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ProcessManager_ServiceDesc.Streams[0], ProcessManager_WatchStatus_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[RequestWatchStatus, ResponseWatchStatus]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProcessManager_WatchStatusClient = grpc.ServerStreamingClient[ResponseWatchStatus]
 
 func (c *processManagerClient) Start(ctx context.Context, in *RequestStart, opts ...grpc.CallOption) (*ResponseStart, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -99,7 +120,7 @@ func (c *processManagerClient) Logs(ctx context.Context, in *RequestLogs, opts .
 
 func (c *processManagerClient) WatchLogs(ctx context.Context, in *RequestWatchLogs, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResponseWatchLogs], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &ProcessManager_ServiceDesc.Streams[0], ProcessManager_WatchLogs_FullMethodName, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &ProcessManager_ServiceDesc.Streams[1], ProcessManager_WatchLogs_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +142,7 @@ type ProcessManager_WatchLogsClient = grpc.ServerStreamingClient[ResponseWatchLo
 // for forward compatibility.
 type ProcessManagerServer interface {
 	Status(context.Context, *RequestStatus) (*ResponseStatus, error)
+	WatchStatus(*RequestWatchStatus, grpc.ServerStreamingServer[ResponseWatchStatus]) error
 	Start(context.Context, *RequestStart) (*ResponseStart, error)
 	Stop(context.Context, *RequestStop) (*ResponseStop, error)
 	Restart(context.Context, *RequestRestart) (*ResponseRestart, error)
@@ -138,6 +160,9 @@ type UnimplementedProcessManagerServer struct{}
 
 func (UnimplementedProcessManagerServer) Status(context.Context, *RequestStatus) (*ResponseStatus, error) {
 	return nil, status.Error(codes.Unimplemented, "method Status not implemented")
+}
+func (UnimplementedProcessManagerServer) WatchStatus(*RequestWatchStatus, grpc.ServerStreamingServer[ResponseWatchStatus]) error {
+	return status.Error(codes.Unimplemented, "method WatchStatus not implemented")
 }
 func (UnimplementedProcessManagerServer) Start(context.Context, *RequestStart) (*ResponseStart, error) {
 	return nil, status.Error(codes.Unimplemented, "method Start not implemented")
@@ -192,6 +217,17 @@ func _ProcessManager_Status_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	return interceptor(ctx, in, info, handler)
 }
+
+func _ProcessManager_WatchStatus_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(RequestWatchStatus)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ProcessManagerServer).WatchStatus(m, &grpc.GenericServerStream[RequestWatchStatus, ResponseWatchStatus]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ProcessManager_WatchStatusServer = grpc.ServerStreamingServer[ResponseWatchStatus]
 
 func _ProcessManager_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RequestStart)
@@ -305,6 +341,11 @@ var ProcessManager_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "WatchStatus",
+			Handler:       _ProcessManager_WatchStatus_Handler,
+			ServerStreams: true,
+		},
 		{
 			StreamName:    "WatchLogs",
 			Handler:       _ProcessManager_WatchLogs_Handler,

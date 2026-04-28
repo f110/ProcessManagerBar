@@ -1268,6 +1268,108 @@ func (b0 ResponseWatchLogs_builder) Build() *ResponseWatchLogs {
 	return m0
 }
 
+type RequestWatchStatus struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestWatchStatus) Reset() {
+	*x = RequestWatchStatus{}
+	mi := &file_proto_process_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestWatchStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestWatchStatus) ProtoMessage() {}
+
+func (x *RequestWatchStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type RequestWatchStatus_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 RequestWatchStatus_builder) Build() *RequestWatchStatus {
+	m0 := &RequestWatchStatus{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type ResponseWatchStatus struct {
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Processes *[]*ProcessStatus      `protobuf:"bytes,1,rep,name=processes"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ResponseWatchStatus) Reset() {
+	*x = ResponseWatchStatus{}
+	mi := &file_proto_process_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseWatchStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseWatchStatus) ProtoMessage() {}
+
+func (x *ResponseWatchStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ResponseWatchStatus) GetProcesses() []*ProcessStatus {
+	if x != nil {
+		if x.xxx_hidden_Processes != nil {
+			return *x.xxx_hidden_Processes
+		}
+	}
+	return nil
+}
+
+func (x *ResponseWatchStatus) SetProcesses(v []*ProcessStatus) {
+	x.xxx_hidden_Processes = &v
+}
+
+type ResponseWatchStatus_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Processes []*ProcessStatus
+}
+
+func (b0 ResponseWatchStatus_builder) Build() *ResponseWatchStatus {
+	m0 := &ResponseWatchStatus{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Processes = &b.Processes
+	return m0
+}
+
 var File_proto_process_proto protoreflect.FileDescriptor
 
 const file_proto_process_proto_rawDesc = "" +
@@ -1306,14 +1408,18 @@ const file_proto_process_proto_rawDesc = "" +
 	"\x10RequestWatchLogs\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"-\n" +
 	"\x11ResponseWatchLogs\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent*}\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent\"\x14\n" +
+	"\x12RequestWatchStatus\"K\n" +
+	"\x13ResponseWatchStatus\x124\n" +
+	"\tprocesses\x18\x01 \x03(\v2\x16.process.ProcessStatusR\tprocesses*}\n" +
 	"\fProcessState\x12\x19\n" +
 	"\x15PROCESS_STATE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12PROCESS_STATE_STOP\x10\x01\x12\x19\n" +
 	"\x15PROCESS_STATE_RUNNING\x10\x02\x12\x1f\n" +
-	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xf1\x02\n" +
+	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xbd\x03\n" +
 	"\x0eProcessManager\x129\n" +
-	"\x06Status\x12\x16.process.RequestStatus\x1a\x17.process.ResponseStatus\x126\n" +
+	"\x06Status\x12\x16.process.RequestStatus\x1a\x17.process.ResponseStatus\x12J\n" +
+	"\vWatchStatus\x12\x1b.process.RequestWatchStatus\x1a\x1c.process.ResponseWatchStatus0\x01\x126\n" +
 	"\x05Start\x12\x15.process.RequestStart\x1a\x16.process.ResponseStart\x123\n" +
 	"\x04Stop\x12\x14.process.RequestStop\x1a\x15.process.ResponseStop\x12<\n" +
 	"\aRestart\x12\x17.process.RequestRestart\x1a\x18.process.ResponseRestart\x123\n" +
@@ -1321,7 +1427,7 @@ const file_proto_process_proto_rawDesc = "" +
 	"\tWatchLogs\x12\x19.process.RequestWatchLogs\x1a\x1a.process.ResponseWatchLogs0\x01B/Z#go.f110.dev/ProcessManagerBar/proto\x92\x03\a\xd2>\x02\x10\x03\b\x01b\beditionsp\xe9\a"
 
 var file_proto_process_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_proto_process_proto_goTypes = []any{
 	(ProcessState)(0),             // 0: process.ProcessState
 	(*Process)(nil),               // 1: process.Process
@@ -1338,29 +1444,34 @@ var file_proto_process_proto_goTypes = []any{
 	(*ResponseLogs)(nil),          // 12: process.ResponseLogs
 	(*RequestWatchLogs)(nil),      // 13: process.RequestWatchLogs
 	(*ResponseWatchLogs)(nil),     // 14: process.ResponseWatchLogs
-	(*timestamppb.Timestamp)(nil), // 15: google.protobuf.Timestamp
+	(*RequestWatchStatus)(nil),    // 15: process.RequestWatchStatus
+	(*ResponseWatchStatus)(nil),   // 16: process.ResponseWatchStatus
+	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
 }
 var file_proto_process_proto_depIdxs = []int32{
-	15, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
+	17, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: process.ProcessStatus.state:type_name -> process.ProcessState
 	2,  // 2: process.ResponseStatus.processes:type_name -> process.ProcessStatus
-	3,  // 3: process.ProcessManager.Status:input_type -> process.RequestStatus
-	5,  // 4: process.ProcessManager.Start:input_type -> process.RequestStart
-	7,  // 5: process.ProcessManager.Stop:input_type -> process.RequestStop
-	9,  // 6: process.ProcessManager.Restart:input_type -> process.RequestRestart
-	11, // 7: process.ProcessManager.Logs:input_type -> process.RequestLogs
-	13, // 8: process.ProcessManager.WatchLogs:input_type -> process.RequestWatchLogs
-	4,  // 9: process.ProcessManager.Status:output_type -> process.ResponseStatus
-	6,  // 10: process.ProcessManager.Start:output_type -> process.ResponseStart
-	8,  // 11: process.ProcessManager.Stop:output_type -> process.ResponseStop
-	10, // 12: process.ProcessManager.Restart:output_type -> process.ResponseRestart
-	12, // 13: process.ProcessManager.Logs:output_type -> process.ResponseLogs
-	14, // 14: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
-	9,  // [9:15] is the sub-list for method output_type
-	3,  // [3:9] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	2,  // 3: process.ResponseWatchStatus.processes:type_name -> process.ProcessStatus
+	3,  // 4: process.ProcessManager.Status:input_type -> process.RequestStatus
+	15, // 5: process.ProcessManager.WatchStatus:input_type -> process.RequestWatchStatus
+	5,  // 6: process.ProcessManager.Start:input_type -> process.RequestStart
+	7,  // 7: process.ProcessManager.Stop:input_type -> process.RequestStop
+	9,  // 8: process.ProcessManager.Restart:input_type -> process.RequestRestart
+	11, // 9: process.ProcessManager.Logs:input_type -> process.RequestLogs
+	13, // 10: process.ProcessManager.WatchLogs:input_type -> process.RequestWatchLogs
+	4,  // 11: process.ProcessManager.Status:output_type -> process.ResponseStatus
+	16, // 12: process.ProcessManager.WatchStatus:output_type -> process.ResponseWatchStatus
+	6,  // 13: process.ProcessManager.Start:output_type -> process.ResponseStart
+	8,  // 14: process.ProcessManager.Stop:output_type -> process.ResponseStop
+	10, // 15: process.ProcessManager.Restart:output_type -> process.ResponseRestart
+	12, // 16: process.ProcessManager.Logs:output_type -> process.ResponseLogs
+	14, // 17: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
+	11, // [11:18] is the sub-list for method output_type
+	4,  // [4:11] is the sub-list for method input_type
+	4,  // [4:4] is the sub-list for extension type_name
+	4,  // [4:4] is the sub-list for extension extendee
+	0,  // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_proto_process_proto_init() }
@@ -1374,7 +1485,7 @@ func file_proto_process_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_process_proto_rawDesc), len(file_proto_process_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

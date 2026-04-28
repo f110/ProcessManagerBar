@@ -45,6 +45,7 @@ const (
 type managedProcess struct {
 	cfg         config.ProcessConfig
 	maxLogLines int
+	notify      func()
 
 	mu         sync.Mutex
 	cmd        *exec.Cmd
@@ -57,10 +58,14 @@ type managedProcess struct {
 	state processState // guarded by mu
 }
 
-func newManagedProcess(cfg config.ProcessConfig, maxLogLines int) *managedProcess {
+func newManagedProcess(cfg config.ProcessConfig, maxLogLines int, notify func()) *managedProcess {
+	if notify == nil {
+		notify = func() {}
+	}
 	return &managedProcess{
 		cfg:         cfg,
 		maxLogLines: maxLogLines,
+		notify:      notify,
 		logSink:     newLogSink(maxLogLines),
 	}
 }
@@ -156,6 +161,7 @@ func (p *managedProcess) Start() error {
 	}
 
 	p.mu.Unlock()
+	p.notify()
 
 	go p.waitProcess(ctx, cmd)
 	return nil
@@ -181,6 +187,7 @@ func (p *managedProcess) waitProcess(ctx context.Context, cmd *exec.Cmd) {
 	prev := p.state
 	p.state = stateStopped
 	p.mu.Unlock()
+	p.notify()
 
 	select {
 	case <-ctx.Done():
@@ -224,6 +231,7 @@ func (p *managedProcess) Stop() error {
 	p.state = stateStopping
 	cmd := p.cmd
 	p.mu.Unlock()
+	p.notify()
 	return p.terminate(cmd)
 }
 
@@ -236,6 +244,7 @@ func (p *managedProcess) Restart() error {
 	p.state = stateRestarting
 	cmd := p.cmd
 	p.mu.Unlock()
+	p.notify()
 	return p.terminate(cmd)
 }
 
@@ -261,9 +270,14 @@ func (p *managedProcess) terminate(cmd *exec.Cmd) error {
 
 func (p *managedProcess) markNeedsRestart() {
 	p.mu.Lock()
-	defer p.mu.Unlock()
+	changed := false
 	if p.state == stateRunning {
 		p.state = stateNeedsRestart
+		changed = true
+	}
+	p.mu.Unlock()
+	if changed {
+		p.notify()
 	}
 }
 

@@ -99,6 +99,30 @@ final class RemoteProcessClient {
         _ = try await p.restart(req)
     }
 
+    func streamStatus(_ handler: @Sendable @escaping ([RemoteProcessStatus]) -> Void) async {
+        guard let p = processClient else { return }
+        let req = Process_RequestWatchStatus()
+        do {
+            try await p.watchStatus(req) { response in
+                for try await message in response.messages {
+                    let statuses = message.processes.map { item -> RemoteProcessStatus in
+                        let state: ProcessState
+                        switch item.state {
+                        case .running: state = .running
+                        case .stop: state = .stopped
+                        case .needsRestart: state = .needsRestart
+                        default: state = .stopped
+                        }
+                        return RemoteProcessStatus(name: item.name, state: state)
+                    }
+                    handler(statuses)
+                }
+            }
+        } catch {
+            // Stream ended or transport error; let caller decide whether to retry.
+        }
+    }
+
     func streamLogs(name: String, _ handler: @Sendable @escaping (String) -> Void) async {
         guard let p = processClient else { return }
         var req = Process_RequestWatchLogs()

@@ -382,10 +382,6 @@ final class RemoteManagedProcess: ManagedProcess {
     }
 
     func applyRemoteState(_ remote: ProcessState) {
-        // Preserve needsRestart locally if user marked it; otherwise mirror remote.
-        if state == .needsRestart && remote == .running {
-            return
-        }
         state = remote
     }
 
@@ -606,16 +602,12 @@ class ProcessSupervisor: ObservableObject {
         remotePollTask = Task { [weak self] in
             await priorTeardown?.value
             while !Task.isCancelled {
-                do {
-                    let statuses = try await client.fetchStatus()
-                    await MainActor.run { [weak self] in
+                await client.streamStatus { statuses in
+                    Task { @MainActor [weak self] in
                         self?.applyRemoteStatuses(statuses, client: client, maxLogLines: maxLogLines)
                     }
-                } catch {
-                    await MainActor.run {
-                        AppLogger.shared.log("remote status fetch failed: \(error)")
-                    }
                 }
+                if Task.isCancelled { return }
                 try? await Task.sleep(for: .seconds(2))
             }
         }

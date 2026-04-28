@@ -33,6 +33,19 @@ public enum Process_ProcessManager: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "WatchStatus" metadata.
+        public enum WatchStatus: Sendable {
+            /// Request type for "WatchStatus".
+            public typealias Input = Process_RequestWatchStatus
+            /// Response type for "WatchStatus".
+            public typealias Output = Process_ResponseWatchStatus
+            /// Descriptor for "WatchStatus".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "process.ProcessManager"),
+                method: "WatchStatus",
+                type: .serverStreaming
+            )
+        }
         /// Namespace for "Start" metadata.
         public enum Start: Sendable {
             /// Request type for "Start".
@@ -101,6 +114,7 @@ public enum Process_ProcessManager: Sendable {
         /// Descriptors for all methods in the "process.ProcessManager" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             Status.descriptor,
+            WatchStatus.descriptor,
             Start.descriptor,
             Stop.descriptor,
             Restart.descriptor,
@@ -142,6 +156,25 @@ extension Process_ProcessManager {
             deserializer: some GRPCCore.MessageDeserializer<Process_ResponseStatus>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseStatus>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "WatchStatus" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestWatchStatus` message.
+        ///   - serializer: A serializer for `Process_RequestWatchStatus` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseWatchStatus` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func watchStatus<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestWatchStatus>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestWatchStatus>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseWatchStatus>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Process_ResponseWatchStatus>) async throws -> Result
         ) async throws -> Result where Result: Sendable
 
         /// Call the "Start" method.
@@ -279,6 +312,34 @@ extension Process_ProcessManager {
             try await self.client.unary(
                 request: request,
                 descriptor: Process_ProcessManager.Method.Status.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
+
+        /// Call the "WatchStatus" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestWatchStatus` message.
+        ///   - serializer: A serializer for `Process_RequestWatchStatus` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseWatchStatus` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func watchStatus<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestWatchStatus>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestWatchStatus>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseWatchStatus>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Process_ResponseWatchStatus>) async throws -> Result
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.serverStreaming(
+                request: request,
+                descriptor: Process_ProcessManager.Method.WatchStatus.descriptor,
                 serializer: serializer,
                 deserializer: deserializer,
                 options: options,
@@ -464,6 +525,29 @@ extension Process_ProcessManager.ClientProtocol {
         )
     }
 
+    /// Call the "WatchStatus" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Process_RequestWatchStatus` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func watchStatus<Result>(
+        request: GRPCCore.ClientRequest<Process_RequestWatchStatus>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Process_ResponseWatchStatus>) async throws -> Result
+    ) async throws -> Result where Result: Sendable {
+        try await self.watchStatus(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Process_RequestWatchStatus>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Process_ResponseWatchStatus>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
     /// Call the "Start" method.
     ///
     /// - Parameters:
@@ -614,6 +698,33 @@ extension Process_ProcessManager.ClientProtocol {
             metadata: metadata
         )
         return try await self.status(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "WatchStatus" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func watchStatus<Result>(
+        _ message: Process_RequestWatchStatus,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Process_ResponseWatchStatus>) async throws -> Result
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Process_RequestWatchStatus>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.watchStatus(
             request: request,
             options: options,
             onResponse: handleResponse
