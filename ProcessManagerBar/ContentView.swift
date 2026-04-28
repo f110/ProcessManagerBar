@@ -129,21 +129,11 @@ struct ProcessRowView: View {
             Circle()
                 .fill(stateColor)
                 .frame(width: 8, height: 8)
+                .help(stateTooltip)
             Text(process.config.name)
                 .font(.system(size: 13))
                 .lineLimit(1)
             Spacer()
-            if case .error(let message) = process.state {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(.orange)
-                    .font(.system(size: 13))
-                    .help(message)
-            } else {
-                Image(systemName: stateIcon)
-                    .foregroundColor(stateColor)
-                    .font(.system(size: 13))
-                    .help(stateTooltip)
-            }
             Button {
                 process.restart()
             } label: {
@@ -206,15 +196,6 @@ struct ProcessRowView: View {
         case .running: return .green
         case .needsRestart: return .yellow
         case .error: return .orange
-        }
-    }
-
-    private var stateIcon: String {
-        switch process.state {
-        case .stopped: return "stop.circle.fill"
-        case .running: return "checkmark.circle.fill"
-        case .needsRestart: return "arrow.clockwise.circle.fill"
-        case .error: return "exclamationmark.triangle.fill"
         }
     }
 
