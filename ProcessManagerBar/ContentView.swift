@@ -56,33 +56,37 @@ struct ContentView: View {
 
             // Actions
             HStack(spacing: 8) {
-                Button {
-                    supervisor.startAll()
-                } label: {
-                    Text("全て起動")
-                        .font(.system(size: 12))
+                if supervisor.multipleStoppedProcesses {
+                    Button {
+                        supervisor.startAll()
+                    } label: {
+                        Text("全て起動")
+                            .font(.system(size: 12))
+                    }
+                    .controlSize(.small)
                 }
-                .controlSize(.small)
-                .disabled(!supervisor.hasStoppedProcesses)
 
-                Button {
-                    supervisor.restartNeedingRestart()
-                } label: {
-                    Text("全て再起動")
-                        .font(.system(size: 12))
+                if supervisor.multipleProcessesNeedingRestart {
+                    Button {
+                        supervisor.restartNeedingRestart()
+                    } label: {
+                        Text("全て再起動")
+                            .font(.system(size: 12))
+                    }
+                    .keyboardShortcut("r", modifiers: [.command])
+                    .controlSize(.small)
                 }
-                .keyboardShortcut("r", modifiers: [.command])
-                .controlSize(.small)
-                .disabled(!supervisor.hasProcessesNeedingRestart)
 
-                Button {
-                    supervisor.loadConfiguration()
-                } label: {
-                    Text("再読み込み")
-                        .font(.system(size: 12))
+                if !supervisor.isRemoteMode {
+                    Button {
+                        supervisor.loadConfiguration()
+                    } label: {
+                        Text("再読み込み")
+                            .font(.system(size: 12))
+                    }
+                    .keyboardShortcut("l", modifiers: [.command])
+                    .controlSize(.small)
                 }
-                .keyboardShortcut("l", modifiers: [.command])
-                .controlSize(.small)
 
                 Button {
                     LogWindowController.shared.show(supervisor: supervisor)

@@ -499,9 +499,15 @@ class ProcessSupervisor: ObservableObject {
         processes.contains { $0.state == .needsRestart }
     }
 
-    var hasStoppedProcesses: Bool {
-        processes.contains { $0.state == .stopped }
+    var multipleProcessesNeedingRestart: Bool {
+        processes.lazy.filter { $0.state == .needsRestart }.prefix(2).count >= 2
     }
+
+    var multipleStoppedProcesses: Bool {
+        processes.lazy.filter { $0.state == .stopped }.prefix(2).count >= 2
+    }
+
+    @Published private(set) var isRemoteMode: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
     private var remoteClient: AnyObject?
@@ -585,6 +591,7 @@ class ProcessSupervisor: ObservableObject {
 
         let client = RemoteProcessClient(server: server)
         remoteClient = client
+        isRemoteMode = true
         AppLogger.shared.log("remote mode: connecting to \(server)")
 
         remoteRunTask = Task {
@@ -649,6 +656,7 @@ class ProcessSupervisor: ObservableObject {
         remoteSystemLogTask = nil
         remoteRunTask = nil
         remoteClient = nil
+        isRemoteMode = false
 
         pollTask?.cancel()
         logTask?.cancel()
