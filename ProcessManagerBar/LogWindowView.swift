@@ -3,8 +3,8 @@ import AppKit
 
 struct LogWindowView: View {
     @ObservedObject var supervisor: ProcessSupervisor
+    @ObservedObject var state: LogWindowState
     @ObservedObject var appLogger: AppLogger = AppLogger.shared
-    @State private var selectedTab: String? = "__app__"
     @State private var searchText: String = ""
     @State private var isSearchVisible = false
     @State private var searchMatchIndex: Int = 0
@@ -40,11 +40,13 @@ struct LogWindowView: View {
     private var jsonParseBinding: Binding<Bool> {
         Binding(
             get: {
-                guard let tab = selectedTab, tab != appTabId else { return false }
+                let tab = state.selectedTab
+                guard tab != appTabId else { return false }
                 return jsonParseEnabledByTab[tab] ?? false
             },
             set: { newValue in
-                guard let tab = selectedTab, tab != appTabId else { return }
+                let tab = state.selectedTab
+                guard tab != appTabId else { return }
                 jsonParseEnabledByTab[tab] = newValue
             }
         )
@@ -60,15 +62,17 @@ struct LogWindowView: View {
                     selectedIndex: $paletteSelectedIndex,
                     tabs: filteredPaletteTabs,
                     onSelect: { tabId in
-                        selectedTab = tabId
-                        searchText = ""
-                        searchMatchIndex = 0
+                        state.selectedTab = tabId
                         closePalette()
                     },
                     onClose: closePalette
                 )
                 .padding(.top, 60)
             }
+        }
+        .onChange(of: state.selectedTab) {
+            searchText = ""
+            searchMatchIndex = 0
         }
         .onAppear {
             NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
@@ -96,23 +100,21 @@ struct LogWindowView: View {
                     HStack(spacing: 0) {
                         // App log tab
                         Button(action: {
-                            selectedTab = appTabId
-                            searchText = ""
-                            searchMatchIndex = 0
+                            state.selectedTab = appTabId
                         }) {
                             HStack(spacing: 5) {
                                 Image(systemName: "gearshape")
                                     .font(.system(size: 9))
                                 Text("App")
-                                    .font(.system(size: 12, weight: selectedTab == appTabId ? .semibold : .regular))
+                                    .font(.system(size: 12, weight: state.selectedTab == appTabId ? .semibold : .regular))
                             }
                             .padding(.horizontal, 14)
                             .padding(.vertical, 6)
                             .background(
                                 RoundedRectangle(cornerRadius: 6)
-                                    .fill(selectedTab == appTabId ? Color.accentColor.opacity(0.15) : Color.clear)
+                                    .fill(state.selectedTab == appTabId ? Color.accentColor.opacity(0.15) : Color.clear)
                             )
-                            .foregroundColor(selectedTab == appTabId ? .accentColor : .primary)
+                            .foregroundColor(state.selectedTab == appTabId ? .accentColor : .primary)
                         }
                         .buttonStyle(.plain)
 
@@ -120,18 +122,16 @@ struct LogWindowView: View {
                             TabButton(
                                 title: proc.config.name,
                                 state: proc.state,
-                                isSelected: selectedTab == proc.id
+                                isSelected: state.selectedTab == proc.id
                             ) {
-                                selectedTab = proc.id
-                                searchText = ""
-                                searchMatchIndex = 0
+                                state.selectedTab = proc.id
                             }
                         }
                     }
                     .padding(.horizontal, 8)
                 }
 
-                if selectedTab != appTabId, selectedTab != nil {
+                if state.selectedTab != appTabId {
                     Toggle(isOn: jsonParseBinding) {
                         Text("JSON")
                             .font(.system(size: 11))
@@ -161,7 +161,7 @@ struct LogWindowView: View {
             }
 
             // Log content
-            if selectedTab == appTabId {
+            if state.selectedTab == appTabId {
                 LogContentView(
                     logOutput: appLogger.logOutput,
                     jsonLogFormatter: nil,
@@ -185,11 +185,11 @@ struct LogWindowView: View {
     }
 
     private var selectedProcess: ManagedProcess? {
-        supervisor.processes.first { $0.id == selectedTab }
+        supervisor.processes.first { $0.id == state.selectedTab }
     }
 
     private var currentMatchCount: Int {
-        if selectedTab == appTabId {
+        if state.selectedTab == appTabId {
             guard !searchText.isEmpty else { return 0 }
             return appLogger.logOutput.countOccurrences(of: searchText)
         }

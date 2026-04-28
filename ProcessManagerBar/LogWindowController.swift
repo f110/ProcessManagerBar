@@ -1,14 +1,22 @@
 import AppKit
 import SwiftUI
 
+final class LogWindowState: ObservableObject {
+    @Published var selectedTab: String = "__app__"
+}
+
 class LogWindowController {
     static let shared = LogWindowController()
 
     private var window: NSWindow?
     private var supervisor: ProcessSupervisor?
+    private let state = LogWindowState()
 
-    func show(supervisor: ProcessSupervisor) {
+    func show(supervisor: ProcessSupervisor, tab: String? = nil) {
         self.supervisor = supervisor
+        if let tab = tab {
+            state.selectedTab = tab
+        }
 
         if let window = window {
             window.makeKeyAndOrderFront(nil)
@@ -16,7 +24,7 @@ class LogWindowController {
             return
         }
 
-        let logView = LogWindowView(supervisor: supervisor)
+        let logView = LogWindowView(supervisor: supervisor, state: state)
         let hostingView = NSHostingView(rootView: logView)
 
         let window = NSWindow(

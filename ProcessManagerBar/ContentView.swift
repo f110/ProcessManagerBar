@@ -41,7 +41,9 @@ struct ContentView: View {
             } else {
                 VStack(spacing: 2) {
                     ForEach(supervisor.processes) { proc in
-                        ProcessRowView(process: proc)
+                        ProcessRowView(process: proc) {
+                            LogWindowController.shared.show(supervisor: supervisor, tab: proc.id)
+                        }
                     }
                 }
                 .padding(.horizontal, 10)
@@ -122,6 +124,7 @@ struct ContentView: View {
 
 struct ProcessRowView: View {
     @ObservedObject var process: ManagedProcess
+    let onOpenLog: () -> Void
     @State private var isHovering = false
 
     var body: some View {
@@ -176,6 +179,9 @@ struct ProcessRowView: View {
             isHovering = hovering
         }
         .contentShape(RoundedRectangle(cornerRadius: 8))
+        .onTapGesture {
+            onOpenLog()
+        }
         .contextMenu {
             Button("再起動") { process.restart() }
             Button("停止") { process.stop() }
