@@ -28,6 +28,8 @@ var ignoredDirNames = map[string]struct{}{
 	"__pycache__":  {},
 	".svn":         {},
 	".hg":          {},
+	".idea":        {},
+	".jj":          {},
 }
 
 type processState int

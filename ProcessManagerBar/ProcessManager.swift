@@ -49,6 +49,7 @@ class ManagedProcess: ObservableObject, Identifiable {
 
     static let ignoredDirNames: Set<String> = [
         ".git", "node_modules", "vendor", ".build", "__pycache__", ".svn", ".hg",
+        ".idea", ".jj",
     ]
 
     static func expandTilde(_ path: String) -> String {
