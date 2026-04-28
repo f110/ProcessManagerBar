@@ -84,10 +84,13 @@ func (m *Manager) Status(_ context.Context, req *proto.RequestStatus) (*proto.Re
 
 	statuses := make([]*proto.ProcessStatus, 0, len(targets))
 	for _, p := range targets {
-		running, startedAt := p.State()
+		running, needsRestart, startedAt := p.State()
 		st := proto.ProcessState_PROCESS_STATE_STOP
 		if running {
 			st = proto.ProcessState_PROCESS_STATE_RUNNING
+			if needsRestart {
+				st = proto.ProcessState_PROCESS_STATE_NEEDS_RESTART
+			}
 		}
 		ps := proto.ProcessStatus_builder{
 			Name:  new(p.Name()),

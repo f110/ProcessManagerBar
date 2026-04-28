@@ -30,6 +30,7 @@ public enum Process_ProcessState: SwiftProtobuf.Enum, Swift.CaseIterable {
   case unknown // = 0
   case stop // = 1
   case running // = 2
+  case needsRestart // = 3
   case UNRECOGNIZED(Int)
 
   public init() {
@@ -41,6 +42,7 @@ public enum Process_ProcessState: SwiftProtobuf.Enum, Swift.CaseIterable {
     case 0: self = .unknown
     case 1: self = .stop
     case 2: self = .running
+    case 3: self = .needsRestart
     default: self = .UNRECOGNIZED(rawValue)
     }
   }
@@ -50,6 +52,7 @@ public enum Process_ProcessState: SwiftProtobuf.Enum, Swift.CaseIterable {
     case .unknown: return 0
     case .stop: return 1
     case .running: return 2
+    case .needsRestart: return 3
     case .UNRECOGNIZED(let i): return i
     }
   }
@@ -59,6 +62,7 @@ public enum Process_ProcessState: SwiftProtobuf.Enum, Swift.CaseIterable {
     .unknown,
     .stop,
     .running,
+    .needsRestart,
   ]
 
 }
@@ -394,7 +398,7 @@ public struct Process_ResponseWatchLogs: Sendable {
 fileprivate let _protobuf_package = "process"
 
 extension Process_ProcessState: SwiftProtobuf._ProtoNameProviding {
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0PROCESS_STATE_UNKNOWN\0\u{1}PROCESS_STATE_STOP\0\u{1}PROCESS_STATE_RUNNING\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{2}\0PROCESS_STATE_UNKNOWN\0\u{1}PROCESS_STATE_STOP\0\u{1}PROCESS_STATE_RUNNING\0\u{1}PROCESS_STATE_NEEDS_RESTART\0")
 }
 
 extension Process_Process: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {

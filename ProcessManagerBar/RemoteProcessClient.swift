@@ -71,6 +71,7 @@ final class RemoteProcessClient {
             switch item.state {
             case .running: state = .running
             case .stop: state = .stopped
+            case .needsRestart: state = .needsRestart
             default: state = .stopped
             }
             return RemoteProcessStatus(name: item.name, state: state)

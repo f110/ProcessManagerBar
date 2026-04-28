@@ -195,6 +195,8 @@ func formatState(s proto.ProcessState) string {
 		return "running"
 	case proto.ProcessState_PROCESS_STATE_STOP:
 		return "stopped"
+	case proto.ProcessState_PROCESS_STATE_NEEDS_RESTART:
+		return "needs-restart"
 	default:
 		return "unknown"
 	}

@@ -21,6 +21,7 @@ enum ProcessState {
   PROCESS_STATE_UNKNOWN = 0;
   PROCESS_STATE_STOP = 1;
   PROCESS_STATE_RUNNING = 2;
+  PROCESS_STATE_NEEDS_RESTART = 3;
 }
 
 message Process {

@@ -25,9 +25,10 @@ const (
 type ProcessState int32
 
 const (
-	ProcessState_PROCESS_STATE_UNKNOWN ProcessState = 0
-	ProcessState_PROCESS_STATE_STOP    ProcessState = 1
-	ProcessState_PROCESS_STATE_RUNNING ProcessState = 2
+	ProcessState_PROCESS_STATE_UNKNOWN       ProcessState = 0
+	ProcessState_PROCESS_STATE_STOP          ProcessState = 1
+	ProcessState_PROCESS_STATE_RUNNING       ProcessState = 2
+	ProcessState_PROCESS_STATE_NEEDS_RESTART ProcessState = 3
 )
 
 // Enum value maps for ProcessState.
@@ -36,11 +37,13 @@ var (
 		0: "PROCESS_STATE_UNKNOWN",
 		1: "PROCESS_STATE_STOP",
 		2: "PROCESS_STATE_RUNNING",
+		3: "PROCESS_STATE_NEEDS_RESTART",
 	}
 	ProcessState_value = map[string]int32{
-		"PROCESS_STATE_UNKNOWN": 0,
-		"PROCESS_STATE_STOP":    1,
-		"PROCESS_STATE_RUNNING": 2,
+		"PROCESS_STATE_UNKNOWN":       0,
+		"PROCESS_STATE_STOP":          1,
+		"PROCESS_STATE_RUNNING":       2,
+		"PROCESS_STATE_NEEDS_RESTART": 3,
 	}
 )
 
@@ -1303,11 +1306,12 @@ const file_proto_process_proto_rawDesc = "" +
 	"\x10RequestWatchLogs\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"-\n" +
 	"\x11ResponseWatchLogs\x12\x18\n" +
-	"\acontent\x18\x01 \x01(\fR\acontent*\\\n" +
+	"\acontent\x18\x01 \x01(\fR\acontent*}\n" +
 	"\fProcessState\x12\x19\n" +
 	"\x15PROCESS_STATE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12PROCESS_STATE_STOP\x10\x01\x12\x19\n" +
-	"\x15PROCESS_STATE_RUNNING\x10\x022\xf1\x02\n" +
+	"\x15PROCESS_STATE_RUNNING\x10\x02\x12\x1f\n" +
+	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xf1\x02\n" +
 	"\x0eProcessManager\x129\n" +
 	"\x06Status\x12\x16.process.RequestStatus\x1a\x17.process.ResponseStatus\x126\n" +
 	"\x05Start\x12\x15.process.RequestStart\x1a\x16.process.ResponseStart\x123\n" +

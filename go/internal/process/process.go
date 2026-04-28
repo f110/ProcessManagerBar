@@ -37,6 +37,7 @@ const (
 	stateRunning
 	stateStopping
 	stateRestarting
+	stateNeedsRestart
 )
 
 type managedProcess struct {
@@ -66,10 +67,10 @@ func (p *managedProcess) Name() string {
 	return p.cfg.Name
 }
 
-func (p *managedProcess) State() (running bool, startedAt time.Time) {
+func (p *managedProcess) State() (running bool, needsRestart bool, startedAt time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.state != stateStopped, p.startedAt
+	return p.state != stateStopped, p.state == stateNeedsRestart, p.startedAt
 }
 
 func (p *managedProcess) LogSnapshot() []byte {
@@ -256,6 +257,14 @@ func (p *managedProcess) terminate(cmd *exec.Cmd) error {
 	return nil
 }
 
+func (p *managedProcess) markNeedsRestart() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.state == stateRunning {
+		p.state = stateNeedsRestart
+	}
+}
+
 // startWatchingLocked must be called with p.mu held.
 func (p *managedProcess) startWatchingLocked(dir string) error {
 	w, err := fsnotify.NewWatcher()
@@ -295,6 +304,9 @@ func (p *managedProcess) watchLoop(w *fsnotify.Watcher) {
 				}
 			}
 			log.Printf("[%s] file changed: %s", p.cfg.Name, ev.Name)
+			if ev.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+				p.markNeedsRestart()
+			}
 		case err, ok := <-w.Errors:
 			if !ok {
 				return
