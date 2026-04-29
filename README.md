@@ -55,3 +55,43 @@ processes:
     dir: /Users/me/project/worker
     log_file: ~/logs/worker.log
 ```
+
+## Server mode
+
+In server mode, the `process-manager` daemon owns the processes and exposes a gRPC API. The menu bar app and the `pmctl` CLI act as clients. This is useful when you want processes to keep running independently of the menu bar app, or to control them from a terminal.
+
+### Running the daemon
+
+```sh
+process-manager --conf process.yaml --listen unix:///tmp/process-manager.sock
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--conf` | (required) | Path to the YAML configuration file |
+| `--listen` | `unix:///tmp/process-manager.sock` | Listen address (`unix:///path/to/sock` or `tcp://host:port`) |
+
+### Connecting from the menu bar app
+
+Add a `server` field to the YAML loaded by the app. When set, the app connects to the daemon instead of spawning processes itself. The `processes` block can be omitted on the client side because the daemon owns the configuration.
+
+```yaml
+server: unix:///tmp/process-manager.sock
+```
+
+`tcp://host:port` is also accepted. Server mode in the menu bar app requires macOS 15.0 or later.
+
+### pmctl
+
+`pmctl` is a command-line client for the daemon.
+
+```sh
+pmctl status                 # list all processes
+pmctl status <name>          # show one process
+pmctl restart <name>         # restart a process
+pmctl logs <name>            # print captured logs
+pmctl logs <name> -f         # follow logs (tail -f)
+pmctl logs                   # print process-manager's own log
+```
+
+Use `--server <addr>` to point at a non-default endpoint (defaults to `unix:///tmp/process-manager.sock`).
