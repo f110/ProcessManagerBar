@@ -20,6 +20,7 @@ type ProcessConfig struct {
 type Configuration struct {
 	Processes   []ProcessConfig `yaml:"processes"`
 	MaxLogLines int             `yaml:"max_log_lines,omitempty"`
+	Server      string          `yaml:"server,omitempty"`
 }
 
 func Read(path string) (*Configuration, error) {

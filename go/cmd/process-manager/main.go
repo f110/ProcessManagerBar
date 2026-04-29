@@ -36,6 +36,10 @@ func processManager() error {
 				return err
 			}
 
+			if !cmd.Flags().Changed("listen") && cfg.Server != "" {
+				listen = cfg.Server
+			}
+
 			ln, cleanup, err := openListener(listen)
 			if err != nil {
 				return err

@@ -24,6 +24,7 @@ processes:
 |-------|------|----------|-------------|
 | `processes` | list | Yes | Managed process definitions |
 | `max_log_lines` | int | No | Maximum number of log lines retained in memory per tab (default: `1000`) |
+| `server` | string | No | gRPC endpoint for [server mode](#server-mode) (`unix:///path/to/sock` or `tcp://host:port`) |
 
 ### Process fields
 
@@ -69,7 +70,7 @@ process-manager --conf process.yaml --listen unix:///tmp/process-manager.sock
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--conf` | (required) | Path to the YAML configuration file |
-| `--listen` | `unix:///tmp/process-manager.sock` | Listen address (`unix:///path/to/sock` or `tcp://host:port`) |
+| `--listen` | `unix:///tmp/process-manager.sock` | Listen address (`unix:///path/to/sock` or `tcp://host:port`). When omitted, the `server` field in the config file is used if set. |
 
 ### Connecting from the menu bar app
 
