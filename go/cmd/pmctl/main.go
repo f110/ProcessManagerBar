@@ -41,6 +41,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newStatusCmd(&server))
 	root.AddCommand(newRestartCmd(&server))
 	root.AddCommand(newLogsCmd(&server))
+	root.AddCommand(newReloadCmd(&server))
 	return root
 }
 
@@ -99,6 +100,19 @@ func newLogsCmd(server *string) *cobra.Command {
 	return c
 }
 
+func newReloadCmd(server *string) *cobra.Command {
+	return &cobra.Command{
+		Use:   "reload",
+		Short: "Reload the configuration file",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
+			defer cancel()
+			return runReload(ctx, *server, cmd.OutOrStdout())
+		},
+	}
+}
+
 func runStatus(ctx context.Context, server, name string, out io.Writer) error {
 	conn, err := dial(server)
 	if err != nil {
@@ -126,6 +140,33 @@ func runStatus(ctx context.Context, server, name string, out io.Writer) error {
 		fmt.Fprintf(tw, "%s\t%s\t%s\n", ps.GetName(), formatState(ps.GetState()), started)
 	}
 	return tw.Flush()
+}
+
+func runReload(ctx context.Context, server string, out io.Writer) error {
+	conn, err := dial(server)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := proto.NewProcessManagerClient(conn)
+	resp, err := client.Reload(ctx, proto.RequestReload_builder{}.Build())
+	if err != nil {
+		return err
+	}
+	printReloadGroup(out, "added", resp.GetAdded())
+	printReloadGroup(out, "removed", resp.GetRemoved())
+	printReloadGroup(out, "changed", resp.GetChanged())
+	printReloadGroup(out, "unchanged", resp.GetUnchanged())
+	return nil
+}
+
+func printReloadGroup(out io.Writer, label string, names []string) {
+	if len(names) == 0 {
+		fmt.Fprintf(out, "%s: (none)\n", label)
+		return
+	}
+	fmt.Fprintf(out, "%s: %s\n", label, strings.Join(names, ", "))
 }
 
 func runRestart(ctx context.Context, server, name string, out io.Writer) error {

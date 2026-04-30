@@ -26,6 +26,7 @@ const (
 	ProcessManager_Restart_FullMethodName     = "/process.ProcessManager/Restart"
 	ProcessManager_Logs_FullMethodName        = "/process.ProcessManager/Logs"
 	ProcessManager_WatchLogs_FullMethodName   = "/process.ProcessManager/WatchLogs"
+	ProcessManager_Reload_FullMethodName      = "/process.ProcessManager/Reload"
 )
 
 // ProcessManagerClient is the client API for ProcessManager service.
@@ -39,6 +40,7 @@ type ProcessManagerClient interface {
 	Restart(ctx context.Context, in *RequestRestart, opts ...grpc.CallOption) (*ResponseRestart, error)
 	Logs(ctx context.Context, in *RequestLogs, opts ...grpc.CallOption) (*ResponseLogs, error)
 	WatchLogs(ctx context.Context, in *RequestWatchLogs, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ResponseWatchLogs], error)
+	Reload(ctx context.Context, in *RequestReload, opts ...grpc.CallOption) (*ResponseReload, error)
 }
 
 type processManagerClient struct {
@@ -137,6 +139,16 @@ func (c *processManagerClient) WatchLogs(ctx context.Context, in *RequestWatchLo
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ProcessManager_WatchLogsClient = grpc.ServerStreamingClient[ResponseWatchLogs]
 
+func (c *processManagerClient) Reload(ctx context.Context, in *RequestReload, opts ...grpc.CallOption) (*ResponseReload, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResponseReload)
+	err := c.cc.Invoke(ctx, ProcessManager_Reload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ProcessManagerServer is the server API for ProcessManager service.
 // All implementations must embed UnimplementedProcessManagerServer
 // for forward compatibility.
@@ -148,6 +160,7 @@ type ProcessManagerServer interface {
 	Restart(context.Context, *RequestRestart) (*ResponseRestart, error)
 	Logs(context.Context, *RequestLogs) (*ResponseLogs, error)
 	WatchLogs(*RequestWatchLogs, grpc.ServerStreamingServer[ResponseWatchLogs]) error
+	Reload(context.Context, *RequestReload) (*ResponseReload, error)
 	mustEmbedUnimplementedProcessManagerServer()
 }
 
@@ -178,6 +191,9 @@ func (UnimplementedProcessManagerServer) Logs(context.Context, *RequestLogs) (*R
 }
 func (UnimplementedProcessManagerServer) WatchLogs(*RequestWatchLogs, grpc.ServerStreamingServer[ResponseWatchLogs]) error {
 	return status.Error(codes.Unimplemented, "method WatchLogs not implemented")
+}
+func (UnimplementedProcessManagerServer) Reload(context.Context, *RequestReload) (*ResponseReload, error) {
+	return nil, status.Error(codes.Unimplemented, "method Reload not implemented")
 }
 func (UnimplementedProcessManagerServer) mustEmbedUnimplementedProcessManagerServer() {}
 func (UnimplementedProcessManagerServer) testEmbeddedByValue()                        {}
@@ -312,6 +328,24 @@ func _ProcessManager_WatchLogs_Handler(srv interface{}, stream grpc.ServerStream
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type ProcessManager_WatchLogsServer = grpc.ServerStreamingServer[ResponseWatchLogs]
 
+func _ProcessManager_Reload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RequestReload)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ProcessManagerServer).Reload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ProcessManager_Reload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ProcessManagerServer).Reload(ctx, req.(*RequestReload))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ProcessManager_ServiceDesc is the grpc.ServiceDesc for ProcessManager service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -338,6 +372,10 @@ var ProcessManager_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Logs",
 			Handler:    _ProcessManager_Logs_Handler,
+		},
+		{
+			MethodName: "Reload",
+			Handler:    _ProcessManager_Reload_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

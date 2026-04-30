@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
+	"reflect"
 	"sync"
 
 	"google.golang.org/grpc"
@@ -18,6 +20,9 @@ import (
 type Manager struct {
 	proto.UnimplementedProcessManagerServer
 
+	configPath  string
+	maxLogLines int
+
 	mu        sync.RWMutex
 	processes []*managedProcess
 	byName    map[string]*managedProcess
@@ -29,11 +34,13 @@ type Manager struct {
 
 var _ proto.ProcessManagerServer = (*Manager)(nil)
 
-func NewManager(cfg *config.Configuration) *Manager {
+func NewManager(cfg *config.Configuration, configPath string) *Manager {
 	m := &Manager{
-		byName:     make(map[string]*managedProcess),
-		sysLog:     newLogSink(cfg.MaxLogLines),
-		statusSubs: make(map[chan struct{}]struct{}),
+		configPath:  configPath,
+		maxLogLines: cfg.MaxLogLines,
+		byName:      make(map[string]*managedProcess),
+		sysLog:      newLogSink(cfg.MaxLogLines),
+		statusSubs:  make(map[chan struct{}]struct{}),
 	}
 	for _, pc := range cfg.Processes {
 		mp := newManagedProcess(pc, cfg.MaxLogLines, m.notifyStatus)
@@ -199,6 +206,73 @@ func (m *Manager) Restart(_ context.Context, req *proto.RequestRestart) (*proto.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return proto.ResponseRestart_builder{}.Build(), nil
+}
+
+func (m *Manager) Reload(_ context.Context, _ *proto.RequestReload) (*proto.ResponseReload, error) {
+	if m.configPath == "" {
+		return nil, status.Error(codes.FailedPrecondition, "config path is not configured")
+	}
+	cfg, err := config.Read(m.configPath)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	var added, removed, changed, unchanged []string
+	var toStop []*managedProcess
+
+	m.mu.Lock()
+	newProcesses := make([]*managedProcess, 0, len(cfg.Processes))
+	newByName := make(map[string]*managedProcess, len(cfg.Processes))
+	seen := make(map[string]struct{}, len(cfg.Processes))
+	for _, pc := range cfg.Processes {
+		seen[pc.Name] = struct{}{}
+		existing, ok := m.byName[pc.Name]
+		switch {
+		case !ok:
+			mp := newManagedProcess(pc, m.maxLogLines, m.notifyStatus)
+			newProcesses = append(newProcesses, mp)
+			newByName[pc.Name] = mp
+			added = append(added, pc.Name)
+		case reflect.DeepEqual(existing.cfg, pc):
+			newProcesses = append(newProcesses, existing)
+			newByName[pc.Name] = existing
+			unchanged = append(unchanged, pc.Name)
+		default:
+			toStop = append(toStop, existing)
+			mp := newManagedProcess(pc, m.maxLogLines, m.notifyStatus)
+			newProcesses = append(newProcesses, mp)
+			newByName[pc.Name] = mp
+			changed = append(changed, pc.Name)
+		}
+	}
+	for _, p := range m.processes {
+		if _, ok := seen[p.Name()]; ok {
+			continue
+		}
+		toStop = append(toStop, p)
+		removed = append(removed, p.Name())
+	}
+	m.processes = newProcesses
+	m.byName = newByName
+	m.mu.Unlock()
+
+	for _, p := range toStop {
+		if err := p.Stop(); err != nil {
+			log.Printf("[%s] stop on reload failed: %v", p.Name(), err)
+		}
+	}
+
+	log.Printf("config reloaded from %s (added=%d removed=%d changed=%d unchanged=%d)",
+		m.configPath, len(added), len(removed), len(changed), len(unchanged))
+
+	m.notifyStatus()
+
+	return proto.ResponseReload_builder{
+		Added:     added,
+		Removed:   removed,
+		Changed:   changed,
+		Unchanged: unchanged,
+	}.Build(), nil
 }
 
 func (m *Manager) Logs(_ context.Context, req *proto.RequestLogs) (*proto.ResponseLogs, error) {

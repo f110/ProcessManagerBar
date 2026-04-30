@@ -415,6 +415,34 @@ public struct Process_ResponseWatchStatus: Sendable {
   public init() {}
 }
 
+public struct Process_RequestReload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
+public struct Process_ResponseReload: Sendable {
+  // SwiftProtobuf.Message conformance is added in an extension below. See the
+  // `Message` and `Message+*Additions` files in the SwiftProtobuf library for
+  // methods supported on all messages.
+
+  public var added: [String] = []
+
+  public var removed: [String] = []
+
+  public var changed: [String] = []
+
+  public var unchanged: [String] = []
+
+  public var unknownFields = SwiftProtobuf.UnknownStorage()
+
+  public init() {}
+}
+
 // MARK: - Code below here is support for the SwiftProtobuf runtime.
 
 fileprivate let _protobuf_package = "process"
@@ -954,6 +982,70 @@ extension Process_ResponseWatchStatus: SwiftProtobuf.Message, SwiftProtobuf._Mes
 
   public static func ==(lhs: Process_ResponseWatchStatus, rhs: Process_ResponseWatchStatus) -> Bool {
     if lhs.processes != rhs.processes {return false}
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Process_RequestReload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".RequestReload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap()
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    // Load everything into unknown fields
+    while try decoder.nextFieldNumber() != nil {}
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Process_RequestReload, rhs: Process_RequestReload) -> Bool {
+    if lhs.unknownFields != rhs.unknownFields {return false}
+    return true
+  }
+}
+
+extension Process_ResponseReload: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
+  public static let protoMessageName: String = _protobuf_package + ".ResponseReload"
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}added\0\u{1}removed\0\u{1}changed\0\u{1}unchanged\0")
+
+  public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
+    while let fieldNumber = try decoder.nextFieldNumber() {
+      // The use of inline closures is to circumvent an issue where the compiler
+      // allocates stack space for every case branch when no optimizations are
+      // enabled. https://github.com/apple/swift-protobuf/issues/1034
+      switch fieldNumber {
+      case 1: try { try decoder.decodeRepeatedStringField(value: &self.added) }()
+      case 2: try { try decoder.decodeRepeatedStringField(value: &self.removed) }()
+      case 3: try { try decoder.decodeRepeatedStringField(value: &self.changed) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.unchanged) }()
+      default: break
+      }
+    }
+  }
+
+  public func traverse<V: SwiftProtobuf.Visitor>(visitor: inout V) throws {
+    if !self.added.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.added, fieldNumber: 1)
+    }
+    if !self.removed.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.removed, fieldNumber: 2)
+    }
+    if !self.changed.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.changed, fieldNumber: 3)
+    }
+    if !self.unchanged.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.unchanged, fieldNumber: 4)
+    }
+    try unknownFields.traverse(visitor: &visitor)
+  }
+
+  public static func ==(lhs: Process_ResponseReload, rhs: Process_ResponseReload) -> Bool {
+    if lhs.added != rhs.added {return false}
+    if lhs.removed != rhs.removed {return false}
+    if lhs.changed != rhs.changed {return false}
+    if lhs.unchanged != rhs.unchanged {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

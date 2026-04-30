@@ -111,6 +111,19 @@ public enum Process_ProcessManager: Sendable {
                 type: .serverStreaming
             )
         }
+        /// Namespace for "Reload" metadata.
+        public enum Reload: Sendable {
+            /// Request type for "Reload".
+            public typealias Input = Process_RequestReload
+            /// Response type for "Reload".
+            public typealias Output = Process_ResponseReload
+            /// Descriptor for "Reload".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "process.ProcessManager"),
+                method: "Reload",
+                type: .unary
+            )
+        }
         /// Descriptors for all methods in the "process.ProcessManager" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             Status.descriptor,
@@ -119,7 +132,8 @@ public enum Process_ProcessManager: Sendable {
             Stop.descriptor,
             Restart.descriptor,
             Logs.descriptor,
-            WatchLogs.descriptor
+            WatchLogs.descriptor,
+            Reload.descriptor
         ]
     }
 }
@@ -270,6 +284,25 @@ extension Process_ProcessManager {
             deserializer: some GRPCCore.MessageDeserializer<Process_ResponseWatchLogs>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.StreamingClientResponse<Process_ResponseWatchLogs>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "Reload" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestReload` message.
+        ///   - serializer: A serializer for `Process_RequestReload` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseReload` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func reload<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestReload>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestReload>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseReload>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseReload>) async throws -> Result
         ) async throws -> Result where Result: Sendable
     }
 
@@ -494,6 +527,36 @@ extension Process_ProcessManager {
                 onResponse: handleResponse
             )
         }
+
+        /// Call the "Reload" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestReload` message.
+        ///   - serializer: A serializer for `Process_RequestReload` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseReload` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func reload<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestReload>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestReload>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseReload>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseReload>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Process_ProcessManager.Method.Reload.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
     }
 }
 
@@ -666,6 +729,31 @@ extension Process_ProcessManager.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Process_RequestWatchLogs>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Process_ResponseWatchLogs>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Reload" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Process_RequestReload` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func reload<Result>(
+        request: GRPCCore.ClientRequest<Process_RequestReload>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseReload>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.reload(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Process_RequestReload>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Process_ResponseReload>(),
             options: options,
             onResponse: handleResponse
         )
@@ -868,6 +956,35 @@ extension Process_ProcessManager.ClientProtocol {
             metadata: metadata
         )
         return try await self.watchLogs(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Reload" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func reload<Result>(
+        _ message: Process_RequestReload,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseReload>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Process_RequestReload>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.reload(
             request: request,
             options: options,
             onResponse: handleResponse

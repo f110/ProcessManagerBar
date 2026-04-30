@@ -93,6 +93,18 @@ pmctl restart <name>         # restart a process
 pmctl logs <name>            # print captured logs
 pmctl logs <name> -f         # follow logs (tail -f)
 pmctl logs                   # print process-manager's own log
+pmctl reload                 # reload the configuration file
 ```
 
 Use `--server <addr>` to point at a non-default endpoint (defaults to `unix:///tmp/process-manager.sock`).
+
+#### `reload`
+
+Re-reads the configuration file the daemon was started with and reconciles it against the running set:
+
+- **Unchanged** entries keep running.
+- **Changed** entries (any field of the process config differs) are stopped; the new definition is registered in stopped state.
+- **Added** entries are registered in stopped state.
+- **Removed** entries are stopped and unregistered.
+
+Top-level fields (`max_log_lines`, `server`) are not re-applied; only the `processes` list is reconciled.

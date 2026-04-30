@@ -46,7 +46,7 @@ func processManager() error {
 			}
 			defer cleanup()
 
-			mgr := process.NewManager(cfg)
+			mgr := process.NewManager(cfg, confFile)
 			log.SetOutput(io.MultiWriter(os.Stderr, mgr.SystemLogWriter()))
 
 			grpcServer := grpc.NewServer()

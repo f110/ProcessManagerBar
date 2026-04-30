@@ -1370,6 +1370,148 @@ func (b0 ResponseWatchStatus_builder) Build() *ResponseWatchStatus {
 	return m0
 }
 
+type RequestReload struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestReload) Reset() {
+	*x = RequestReload{}
+	mi := &file_proto_process_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestReload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestReload) ProtoMessage() {}
+
+func (x *RequestReload) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type RequestReload_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 RequestReload_builder) Build() *RequestReload {
+	m0 := &RequestReload{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type ResponseReload struct {
+	state                protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Added     []string               `protobuf:"bytes,1,rep,name=added"`
+	xxx_hidden_Removed   []string               `protobuf:"bytes,2,rep,name=removed"`
+	xxx_hidden_Changed   []string               `protobuf:"bytes,3,rep,name=changed"`
+	xxx_hidden_Unchanged []string               `protobuf:"bytes,4,rep,name=unchanged"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ResponseReload) Reset() {
+	*x = ResponseReload{}
+	mi := &file_proto_process_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseReload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseReload) ProtoMessage() {}
+
+func (x *ResponseReload) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ResponseReload) GetAdded() []string {
+	if x != nil {
+		return x.xxx_hidden_Added
+	}
+	return nil
+}
+
+func (x *ResponseReload) GetRemoved() []string {
+	if x != nil {
+		return x.xxx_hidden_Removed
+	}
+	return nil
+}
+
+func (x *ResponseReload) GetChanged() []string {
+	if x != nil {
+		return x.xxx_hidden_Changed
+	}
+	return nil
+}
+
+func (x *ResponseReload) GetUnchanged() []string {
+	if x != nil {
+		return x.xxx_hidden_Unchanged
+	}
+	return nil
+}
+
+func (x *ResponseReload) SetAdded(v []string) {
+	x.xxx_hidden_Added = v
+}
+
+func (x *ResponseReload) SetRemoved(v []string) {
+	x.xxx_hidden_Removed = v
+}
+
+func (x *ResponseReload) SetChanged(v []string) {
+	x.xxx_hidden_Changed = v
+}
+
+func (x *ResponseReload) SetUnchanged(v []string) {
+	x.xxx_hidden_Unchanged = v
+}
+
+type ResponseReload_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Added     []string
+	Removed   []string
+	Changed   []string
+	Unchanged []string
+}
+
+func (b0 ResponseReload_builder) Build() *ResponseReload {
+	m0 := &ResponseReload{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Added = b.Added
+	x.xxx_hidden_Removed = b.Removed
+	x.xxx_hidden_Changed = b.Changed
+	x.xxx_hidden_Unchanged = b.Unchanged
+	return m0
+}
+
 var File_proto_process_proto protoreflect.FileDescriptor
 
 const file_proto_process_proto_rawDesc = "" +
@@ -1411,12 +1553,18 @@ const file_proto_process_proto_rawDesc = "" +
 	"\acontent\x18\x01 \x01(\fR\acontent\"\x14\n" +
 	"\x12RequestWatchStatus\"K\n" +
 	"\x13ResponseWatchStatus\x124\n" +
-	"\tprocesses\x18\x01 \x03(\v2\x16.process.ProcessStatusR\tprocesses*}\n" +
+	"\tprocesses\x18\x01 \x03(\v2\x16.process.ProcessStatusR\tprocesses\"\x0f\n" +
+	"\rRequestReload\"x\n" +
+	"\x0eResponseReload\x12\x14\n" +
+	"\x05added\x18\x01 \x03(\tR\x05added\x12\x18\n" +
+	"\aremoved\x18\x02 \x03(\tR\aremoved\x12\x18\n" +
+	"\achanged\x18\x03 \x03(\tR\achanged\x12\x1c\n" +
+	"\tunchanged\x18\x04 \x03(\tR\tunchanged*}\n" +
 	"\fProcessState\x12\x19\n" +
 	"\x15PROCESS_STATE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12PROCESS_STATE_STOP\x10\x01\x12\x19\n" +
 	"\x15PROCESS_STATE_RUNNING\x10\x02\x12\x1f\n" +
-	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xbd\x03\n" +
+	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xf8\x03\n" +
 	"\x0eProcessManager\x129\n" +
 	"\x06Status\x12\x16.process.RequestStatus\x1a\x17.process.ResponseStatus\x12J\n" +
 	"\vWatchStatus\x12\x1b.process.RequestWatchStatus\x1a\x1c.process.ResponseWatchStatus0\x01\x126\n" +
@@ -1424,10 +1572,11 @@ const file_proto_process_proto_rawDesc = "" +
 	"\x04Stop\x12\x14.process.RequestStop\x1a\x15.process.ResponseStop\x12<\n" +
 	"\aRestart\x12\x17.process.RequestRestart\x1a\x18.process.ResponseRestart\x123\n" +
 	"\x04Logs\x12\x14.process.RequestLogs\x1a\x15.process.ResponseLogs\x12D\n" +
-	"\tWatchLogs\x12\x19.process.RequestWatchLogs\x1a\x1a.process.ResponseWatchLogs0\x01B/Z#go.f110.dev/ProcessManagerBar/proto\x92\x03\a\xd2>\x02\x10\x03\b\x01b\beditionsp\xe9\a"
+	"\tWatchLogs\x12\x19.process.RequestWatchLogs\x1a\x1a.process.ResponseWatchLogs0\x01\x129\n" +
+	"\x06Reload\x12\x16.process.RequestReload\x1a\x17.process.ResponseReloadB/Z#go.f110.dev/ProcessManagerBar/proto\x92\x03\a\xd2>\x02\x10\x03\b\x01b\beditionsp\xe9\a"
 
 var file_proto_process_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_proto_process_proto_goTypes = []any{
 	(ProcessState)(0),             // 0: process.ProcessState
 	(*Process)(nil),               // 1: process.Process
@@ -1446,10 +1595,12 @@ var file_proto_process_proto_goTypes = []any{
 	(*ResponseWatchLogs)(nil),     // 14: process.ResponseWatchLogs
 	(*RequestWatchStatus)(nil),    // 15: process.RequestWatchStatus
 	(*ResponseWatchStatus)(nil),   // 16: process.ResponseWatchStatus
-	(*timestamppb.Timestamp)(nil), // 17: google.protobuf.Timestamp
+	(*RequestReload)(nil),         // 17: process.RequestReload
+	(*ResponseReload)(nil),        // 18: process.ResponseReload
+	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
 }
 var file_proto_process_proto_depIdxs = []int32{
-	17, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
+	19, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: process.ProcessStatus.state:type_name -> process.ProcessState
 	2,  // 2: process.ResponseStatus.processes:type_name -> process.ProcessStatus
 	2,  // 3: process.ResponseWatchStatus.processes:type_name -> process.ProcessStatus
@@ -1460,15 +1611,17 @@ var file_proto_process_proto_depIdxs = []int32{
 	9,  // 8: process.ProcessManager.Restart:input_type -> process.RequestRestart
 	11, // 9: process.ProcessManager.Logs:input_type -> process.RequestLogs
 	13, // 10: process.ProcessManager.WatchLogs:input_type -> process.RequestWatchLogs
-	4,  // 11: process.ProcessManager.Status:output_type -> process.ResponseStatus
-	16, // 12: process.ProcessManager.WatchStatus:output_type -> process.ResponseWatchStatus
-	6,  // 13: process.ProcessManager.Start:output_type -> process.ResponseStart
-	8,  // 14: process.ProcessManager.Stop:output_type -> process.ResponseStop
-	10, // 15: process.ProcessManager.Restart:output_type -> process.ResponseRestart
-	12, // 16: process.ProcessManager.Logs:output_type -> process.ResponseLogs
-	14, // 17: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
-	11, // [11:18] is the sub-list for method output_type
-	4,  // [4:11] is the sub-list for method input_type
+	17, // 11: process.ProcessManager.Reload:input_type -> process.RequestReload
+	4,  // 12: process.ProcessManager.Status:output_type -> process.ResponseStatus
+	16, // 13: process.ProcessManager.WatchStatus:output_type -> process.ResponseWatchStatus
+	6,  // 14: process.ProcessManager.Start:output_type -> process.ResponseStart
+	8,  // 15: process.ProcessManager.Stop:output_type -> process.ResponseStop
+	10, // 16: process.ProcessManager.Restart:output_type -> process.ResponseRestart
+	12, // 17: process.ProcessManager.Logs:output_type -> process.ResponseLogs
+	14, // 18: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
+	18, // 19: process.ProcessManager.Reload:output_type -> process.ResponseReload
+	12, // [12:20] is the sub-list for method output_type
+	4,  // [4:12] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1485,7 +1638,7 @@ func file_proto_process_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_process_proto_rawDesc), len(file_proto_process_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
