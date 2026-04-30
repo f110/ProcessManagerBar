@@ -19,7 +19,7 @@ import (
 	"go.f110.dev/ProcessManagerBar/proto"
 )
 
-const defaultServer = "unix:///tmp/process-manager.sock"
+const defaultServer = "tcp://127.0.0.1:9000"
 
 func main() {
 	if err := newRootCmd().Execute(); err != nil {

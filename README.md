@@ -24,7 +24,7 @@ processes:
 |-------|------|----------|-------------|
 | `processes` | list | Yes | Managed process definitions |
 | `max_log_lines` | int | No | Maximum number of log lines retained in memory per tab (default: `1000`) |
-| `server` | string | No | gRPC endpoint for [server mode](#server-mode) (`unix:///path/to/sock` or `tcp://host:port`) |
+| `server` | string | No | gRPC endpoint for [server mode](#server-mode) (`tcp://host:port` or `unix:///path/to/sock`) |
 
 ### Process fields
 
@@ -64,23 +64,23 @@ In server mode, the `process-manager` daemon owns the processes and exposes a gR
 ### Running the daemon
 
 ```sh
-process-manager --conf process.yaml --listen unix:///tmp/process-manager.sock
+process-manager --conf process.yaml --listen tcp://127.0.0.1:9000
 ```
 
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--conf` | (required) | Path to the YAML configuration file |
-| `--listen` | `unix:///tmp/process-manager.sock` | Listen address (`unix:///path/to/sock` or `tcp://host:port`). When omitted, the `server` field in the config file is used if set. |
+| `--listen` | `tcp://127.0.0.1:9000` | Listen address (`tcp://host:port` or `unix:///path/to/sock`). When omitted, the `server` field in the config file is used if set. |
 
 ### Connecting from the menu bar app
 
 Add a `server` field to the YAML loaded by the app. When set, the app connects to the daemon instead of spawning processes itself. The `processes` block can be omitted on the client side because the daemon owns the configuration.
 
 ```yaml
-server: unix:///tmp/process-manager.sock
+server: tcp://127.0.0.1:9000
 ```
 
-`tcp://host:port` is also accepted. Server mode in the menu bar app requires macOS 15.0 or later.
+`unix:///path/to/sock` is also accepted. Server mode in the menu bar app requires macOS 15.0 or later.
 
 ### pmctl
 
@@ -96,7 +96,7 @@ pmctl logs                   # print process-manager's own log
 pmctl reload                 # reload the configuration file
 ```
 
-Use `--server <addr>` to point at a non-default endpoint (defaults to `unix:///tmp/process-manager.sock`).
+Use `--server <addr>` to point at a non-default endpoint (defaults to `tcp://127.0.0.1:9000`).
 
 #### `reload`
 

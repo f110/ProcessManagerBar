@@ -86,7 +86,7 @@ func processManager() error {
 		},
 	}
 	cmd.Flags().StringVar(&confFile, "conf", "", "path to the configuration file")
-	cmd.Flags().StringVar(&listen, "listen", "unix:///tmp/process-manager.sock", "listen address (tcp://host:port or unix:///path/to/sock)")
+	cmd.Flags().StringVar(&listen, "listen", "tcp://127.0.0.1:9000", "listen address (tcp://host:port or unix:///path/to/sock)")
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
