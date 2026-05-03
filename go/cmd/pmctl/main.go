@@ -42,6 +42,7 @@ func newRootCmd() *cobra.Command {
 	root.AddCommand(newRestartCmd(&server))
 	root.AddCommand(newLogsCmd(&server))
 	root.AddCommand(newReloadCmd(&server))
+	root.AddCommand(newLaunchdPlistCmd())
 	return root
 }
 
