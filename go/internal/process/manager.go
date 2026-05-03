@@ -123,8 +123,9 @@ func (m *Manager) statusFor(p *managedProcess) *proto.ProcessStatus {
 		}
 	}
 	ps := proto.ProcessStatus_builder{
-		Name:  new(p.Name()),
-		State: &st,
+		Name:    new(p.Name()),
+		State:   &st,
+		Command: p.Command(),
 	}
 	if !startedAt.IsZero() {
 		ps.StartedAt = timestamppb.New(startedAt)

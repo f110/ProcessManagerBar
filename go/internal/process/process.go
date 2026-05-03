@@ -74,6 +74,10 @@ func (p *managedProcess) Name() string {
 	return p.cfg.Name
 }
 
+func (p *managedProcess) Command() []string {
+	return p.cfg.Command
+}
+
 func (p *managedProcess) State() (running bool, needsRestart bool, startedAt time.Time) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

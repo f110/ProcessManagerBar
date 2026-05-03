@@ -152,6 +152,8 @@ public struct Process_ProcessStatus: Sendable {
   /// Clears the value of `state`. Subsequent reads from it will return its default value.
   public mutating func clearState() {self._state = nil}
 
+  public var command: [String] = []
+
   public var unknownFields = SwiftProtobuf.UnknownStorage()
 
   public init() {}
@@ -507,7 +509,7 @@ extension Process_Process: SwiftProtobuf.Message, SwiftProtobuf._MessageImplemen
 
 extension Process_ProcessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageImplementationBase, SwiftProtobuf._ProtoNameProviding {
   public static let protoMessageName: String = _protobuf_package + ".ProcessStatus"
-  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}started_at\0\u{1}state\0")
+  public static let _protobuf_nameMap = SwiftProtobuf._NameMap(bytecode: "\0\u{1}name\0\u{3}started_at\0\u{1}state\0\u{1}command\0")
 
   public mutating func decodeMessage<D: SwiftProtobuf.Decoder>(decoder: inout D) throws {
     while let fieldNumber = try decoder.nextFieldNumber() {
@@ -518,6 +520,7 @@ extension Process_ProcessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
       case 1: try { try decoder.decodeSingularStringField(value: &self._name) }()
       case 2: try { try decoder.decodeSingularMessageField(value: &self._startedAt) }()
       case 3: try { try decoder.decodeSingularEnumField(value: &self._state) }()
+      case 4: try { try decoder.decodeRepeatedStringField(value: &self.command) }()
       default: break
       }
     }
@@ -537,6 +540,9 @@ extension Process_ProcessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     try { if let v = self._state {
       try visitor.visitSingularEnumField(value: v, fieldNumber: 3)
     } }()
+    if !self.command.isEmpty {
+      try visitor.visitRepeatedStringField(value: self.command, fieldNumber: 4)
+    }
     try unknownFields.traverse(visitor: &visitor)
   }
 
@@ -544,6 +550,7 @@ extension Process_ProcessStatus: SwiftProtobuf.Message, SwiftProtobuf._MessageIm
     if lhs._name != rhs._name {return false}
     if lhs._startedAt != rhs._startedAt {return false}
     if lhs._state != rhs._state {return false}
+    if lhs.command != rhs.command {return false}
     if lhs.unknownFields != rhs.unknownFields {return false}
     return true
   }

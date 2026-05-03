@@ -6,6 +6,7 @@ import GRPCProtobuf
 struct RemoteProcessStatus {
     let name: String
     let state: ProcessState
+    let command: [String]
 }
 
 @available(macOS 15.0, *)
@@ -74,7 +75,7 @@ final class RemoteProcessClient {
             case .needsRestart: state = .needsRestart
             default: state = .stopped
             }
-            return RemoteProcessStatus(name: item.name, state: state)
+            return RemoteProcessStatus(name: item.name, state: state, command: item.command)
         }
     }
 
@@ -113,7 +114,7 @@ final class RemoteProcessClient {
                         case .needsRestart: state = .needsRestart
                         default: state = .stopped
                         }
-                        return RemoteProcessStatus(name: item.name, state: state)
+                        return RemoteProcessStatus(name: item.name, state: state, command: item.command)
                     }
                     handler(statuses)
                 }

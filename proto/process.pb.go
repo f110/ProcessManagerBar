@@ -262,6 +262,7 @@ type ProcessStatus struct {
 	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
 	xxx_hidden_StartedAt   *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=started_at,json=startedAt"`
 	xxx_hidden_State       ProcessState           `protobuf:"varint,3,opt,name=state,enum=process.ProcessState"`
+	xxx_hidden_Command     []string               `protobuf:"bytes,4,rep,name=command"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
 	unknownFields          protoimpl.UnknownFields
@@ -319,9 +320,16 @@ func (x *ProcessStatus) GetState() ProcessState {
 	return ProcessState_PROCESS_STATE_UNKNOWN
 }
 
+func (x *ProcessStatus) GetCommand() []string {
+	if x != nil {
+		return x.xxx_hidden_Command
+	}
+	return nil
+}
+
 func (x *ProcessStatus) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
 }
 
 func (x *ProcessStatus) SetStartedAt(v *timestamppb.Timestamp) {
@@ -330,7 +338,11 @@ func (x *ProcessStatus) SetStartedAt(v *timestamppb.Timestamp) {
 
 func (x *ProcessStatus) SetState(v ProcessState) {
 	x.xxx_hidden_State = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 4)
+}
+
+func (x *ProcessStatus) SetCommand(v []string) {
+	x.xxx_hidden_Command = v
 }
 
 func (x *ProcessStatus) HasName() bool {
@@ -374,6 +386,7 @@ type ProcessStatus_builder struct {
 	Name      *string
 	StartedAt *timestamppb.Timestamp
 	State     *ProcessState
+	Command   []string
 }
 
 func (b0 ProcessStatus_builder) Build() *ProcessStatus {
@@ -381,14 +394,15 @@ func (b0 ProcessStatus_builder) Build() *ProcessStatus {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
 		x.xxx_hidden_Name = b.Name
 	}
 	x.xxx_hidden_StartedAt = b.StartedAt
 	if b.State != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 4)
 		x.xxx_hidden_State = *b.State
 	}
+	x.xxx_hidden_Command = b.Command
 	return m0
 }
 
@@ -1522,12 +1536,13 @@ const file_proto_process_proto_rawDesc = "" +
 	"\acommand\x18\x02 \x03(\tR\acommand\x12\x10\n" +
 	"\x03dir\x18\x03 \x01(\tR\x03dir\x12\x19\n" +
 	"\blog_file\x18\x04 \x01(\tR\alogFile\x12\x14\n" +
-	"\x05watch\x18\x05 \x01(\bR\x05watch\"\x8b\x01\n" +
+	"\x05watch\x18\x05 \x01(\bR\x05watch\"\xa5\x01\n" +
 	"\rProcessStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x129\n" +
 	"\n" +
 	"started_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x12+\n" +
-	"\x05state\x18\x03 \x01(\x0e2\x15.process.ProcessStateR\x05state\"#\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x15.process.ProcessStateR\x05state\x12\x18\n" +
+	"\acommand\x18\x04 \x03(\tR\acommand\"#\n" +
 	"\rRequestStatus\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"F\n" +
 	"\x0eResponseStatus\x124\n" +

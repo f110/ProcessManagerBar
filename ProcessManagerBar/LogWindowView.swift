@@ -11,9 +11,19 @@ struct LogWindowView: View {
     @State private var isPaletteVisible = false
     @State private var paletteText = ""
     @State private var paletteSelectedIndex = 0
-    @State private var jsonParseEnabledByTab: [String: Bool] = [:]
+    @State private var jsonParseEnabledByProcess: [String: Bool] = LogWindowView.loadPersistedJsonToggleState()
 
     private let appTabId = "__app__"
+
+    private static let jsonToggleDefaultsKey = "jsonParseEnabledByProcess"
+
+    private static func loadPersistedJsonToggleState() -> [String: Bool] {
+        UserDefaults.standard.dictionary(forKey: jsonToggleDefaultsKey) as? [String: Bool] ?? [:]
+    }
+
+    private static func toggleKey(for proc: ManagedProcess) -> String {
+        ([proc.config.name] + proc.config.command).joined(separator: "\u{1F}")
+    }
 
     private var paletteTabs: [PaletteTab] {
         var tabs: [PaletteTab] = [
@@ -40,14 +50,14 @@ struct LogWindowView: View {
     private var jsonParseBinding: Binding<Bool> {
         Binding(
             get: {
-                let tab = state.selectedTab
-                guard tab != appTabId else { return false }
-                return jsonParseEnabledByTab[tab] ?? false
+                guard let proc = selectedProcess else { return false }
+                return jsonParseEnabledByProcess[LogWindowView.toggleKey(for: proc)] ?? false
             },
             set: { newValue in
-                let tab = state.selectedTab
-                guard tab != appTabId else { return }
-                jsonParseEnabledByTab[tab] = newValue
+                guard let proc = selectedProcess else { return }
+                let key = LogWindowView.toggleKey(for: proc)
+                jsonParseEnabledByProcess[key] = newValue
+                UserDefaults.standard.set(jsonParseEnabledByProcess, forKey: LogWindowView.jsonToggleDefaultsKey)
             }
         )
     }
@@ -171,7 +181,7 @@ struct LogWindowView: View {
             } else if let proc = selectedProcess {
                 LogContentView(
                     logOutput: proc.logOutput,
-                    jsonLogFormatter: (jsonParseEnabledByTab[proc.id] ?? false) ? proc.jsonLogFormatter : nil,
+                    jsonLogFormatter: (jsonParseEnabledByProcess[LogWindowView.toggleKey(for: proc)] ?? false) ? proc.jsonLogFormatter : nil,
                     searchText: searchText,
                     searchMatchIndex: searchMatchIndex
                 )

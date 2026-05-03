@@ -648,10 +648,12 @@ class ProcessSupervisor: ObservableObject {
         var next: [ManagedProcess] = []
         for status in statuses {
             let proc: RemoteManagedProcess
-            if let existing = byName.removeValue(forKey: status.name) {
+            if let existing = byName[status.name], existing.config.command == status.command {
+                byName.removeValue(forKey: status.name)
                 proc = existing
             } else {
-                let cfg = ProcessConfig(name: status.name, command: [], dir: "", logFile: nil, watch: nil)
+                byName.removeValue(forKey: status.name)
+                let cfg = ProcessConfig(name: status.name, command: status.command, dir: "", logFile: nil, watch: nil)
                 proc = RemoteManagedProcess(config: cfg, client: client)
             }
             proc.maxLogLines = maxLogLines
