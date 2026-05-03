@@ -109,6 +109,7 @@ struct ContentView: View {
                 .controlSize(.small)
             }
             .padding(.horizontal, 16)
+            .padding(.top, 6)
             .padding(.bottom, 12)
         }
         .frame(width: 340)
