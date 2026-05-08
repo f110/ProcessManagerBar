@@ -574,7 +574,7 @@ class ProcessSupervisor: ObservableObject {
             observeProcesses()
             startAll()
         } catch {
-            print("Failed to load configuration: \(error)")
+            AppLogger.shared.log("failed to load configuration: \(error)")
         }
     }
 

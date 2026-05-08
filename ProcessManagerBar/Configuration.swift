@@ -16,6 +16,17 @@ struct ProcessConfig: Codable, Identifiable, Equatable {
     }
 }
 
+extension ProcessConfig {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        command = try c.decodeIfPresent([String].self, forKey: .command) ?? []
+        dir = try c.decodeIfPresent(String.self, forKey: .dir) ?? ""
+        logFile = try c.decodeIfPresent(String.self, forKey: .logFile)
+        watch = try c.decodeIfPresent(Bool.self, forKey: .watch)
+    }
+}
+
 struct Configuration: Codable {
     var processes: [ProcessConfig]?
     var maxLogLines: Int?
