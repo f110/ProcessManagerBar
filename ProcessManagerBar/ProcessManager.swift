@@ -331,13 +331,24 @@ final class RemoteManagedProcess: ManagedProcess {
         self.client = client
         super.init(config: config)
         watchTask = Task { [weak self] in
-            guard let self = self, let client = self.client else { return }
-            await client.streamLogs(name: self.config.name) { [weak self] chunk in
-                DispatchQueue.main.async {
-                    guard let self = self else { return }
-                    self.logOutput.append(chunk)
-                    ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
+            var firstAttempt = true
+            while !Task.isCancelled {
+                guard let self = self, let client = self.client else { return }
+                if !firstAttempt {
+                    await MainActor.run {
+                        self.logOutput = ""
+                    }
                 }
+                firstAttempt = false
+                await client.streamLogs(name: self.config.name) { [weak self] chunk in
+                    DispatchQueue.main.async {
+                        guard let self = self else { return }
+                        self.logOutput.append(chunk)
+                        ManagedProcess.trimLog(&self.logOutput, maxLines: self.maxLogLines)
+                    }
+                }
+                if Task.isCancelled { return }
+                try? await Task.sleep(for: .seconds(2))
             }
         }
     }
@@ -530,6 +541,7 @@ class ProcessSupervisor: ObservableObject {
     func loadConfiguration() {
         guard let url = configFileURL else { return }
 
+        AppLogger.shared.log("loading configuration from \(url.path)")
         do {
             let config = try Configuration.read(from: url)
             let maxLogLines = config.maxLogLines ?? Configuration.defaultMaxLogLines
@@ -601,8 +613,12 @@ class ProcessSupervisor: ObservableObject {
 
         remoteSystemLogTask = Task {
             await priorTeardown?.value
-            await client.streamLogs(name: "") { chunk in
-                AppLogger.shared.appendRemoteSystemLog(chunk)
+            while !Task.isCancelled {
+                await client.streamLogs(name: "") { chunk in
+                    AppLogger.shared.appendRemoteSystemLog(chunk)
+                }
+                if Task.isCancelled { return }
+                try? await Task.sleep(for: .seconds(2))
             }
         }
 
