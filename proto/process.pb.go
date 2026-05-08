@@ -1526,6 +1526,219 @@ func (b0 ResponseReload_builder) Build() *ResponseReload {
 	return m0
 }
 
+type Link struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_Url         *string                `protobuf:"bytes,2,opt,name=url"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *Link) Reset() {
+	*x = Link{}
+	mi := &file_proto_process_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Link) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Link) ProtoMessage() {}
+
+func (x *Link) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *Link) GetName() string {
+	if x != nil {
+		if x.xxx_hidden_Name != nil {
+			return *x.xxx_hidden_Name
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *Link) GetUrl() string {
+	if x != nil {
+		if x.xxx_hidden_Url != nil {
+			return *x.xxx_hidden_Url
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *Link) SetName(v string) {
+	x.xxx_hidden_Name = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
+}
+
+func (x *Link) SetUrl(v string) {
+	x.xxx_hidden_Url = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
+}
+
+func (x *Link) HasName() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *Link) HasUrl() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *Link) ClearName() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Name = nil
+}
+
+func (x *Link) ClearUrl() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Url = nil
+}
+
+type Link_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name *string
+	Url  *string
+}
+
+func (b0 Link_builder) Build() *Link {
+	m0 := &Link{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Name != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 2)
+		x.xxx_hidden_Name = b.Name
+	}
+	if b.Url != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
+		x.xxx_hidden_Url = b.Url
+	}
+	return m0
+}
+
+type RequestLinks struct {
+	state         protoimpl.MessageState `protogen:"opaque.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestLinks) Reset() {
+	*x = RequestLinks{}
+	mi := &file_proto_process_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestLinks) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestLinks) ProtoMessage() {}
+
+func (x *RequestLinks) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+type RequestLinks_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+}
+
+func (b0 RequestLinks_builder) Build() *RequestLinks {
+	m0 := &RequestLinks{}
+	b, x := &b0, m0
+	_, _ = b, x
+	return m0
+}
+
+type ResponseLinks struct {
+	state            protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Links *[]*Link               `protobuf:"bytes,1,rep,name=links"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ResponseLinks) Reset() {
+	*x = ResponseLinks{}
+	mi := &file_proto_process_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResponseLinks) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResponseLinks) ProtoMessage() {}
+
+func (x *ResponseLinks) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_process_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ResponseLinks) GetLinks() []*Link {
+	if x != nil {
+		if x.xxx_hidden_Links != nil {
+			return *x.xxx_hidden_Links
+		}
+	}
+	return nil
+}
+
+func (x *ResponseLinks) SetLinks(v []*Link) {
+	x.xxx_hidden_Links = &v
+}
+
+type ResponseLinks_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Links []*Link
+}
+
+func (b0 ResponseLinks_builder) Build() *ResponseLinks {
+	m0 := &ResponseLinks{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Links = &b.Links
+	return m0
+}
+
 var File_proto_process_proto protoreflect.FileDescriptor
 
 const file_proto_process_proto_rawDesc = "" +
@@ -1574,12 +1787,18 @@ const file_proto_process_proto_rawDesc = "" +
 	"\x05added\x18\x01 \x03(\tR\x05added\x12\x18\n" +
 	"\aremoved\x18\x02 \x03(\tR\aremoved\x12\x18\n" +
 	"\achanged\x18\x03 \x03(\tR\achanged\x12\x1c\n" +
-	"\tunchanged\x18\x04 \x03(\tR\tunchanged*}\n" +
+	"\tunchanged\x18\x04 \x03(\tR\tunchanged\",\n" +
+	"\x04Link\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"\x0e\n" +
+	"\fRequestLinks\"4\n" +
+	"\rResponseLinks\x12#\n" +
+	"\x05links\x18\x01 \x03(\v2\r.process.LinkR\x05links*}\n" +
 	"\fProcessState\x12\x19\n" +
 	"\x15PROCESS_STATE_UNKNOWN\x10\x00\x12\x16\n" +
 	"\x12PROCESS_STATE_STOP\x10\x01\x12\x19\n" +
 	"\x15PROCESS_STATE_RUNNING\x10\x02\x12\x1f\n" +
-	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xf8\x03\n" +
+	"\x1bPROCESS_STATE_NEEDS_RESTART\x10\x032\xb0\x04\n" +
 	"\x0eProcessManager\x129\n" +
 	"\x06Status\x12\x16.process.RequestStatus\x1a\x17.process.ResponseStatus\x12J\n" +
 	"\vWatchStatus\x12\x1b.process.RequestWatchStatus\x1a\x1c.process.ResponseWatchStatus0\x01\x126\n" +
@@ -1588,10 +1807,11 @@ const file_proto_process_proto_rawDesc = "" +
 	"\aRestart\x12\x17.process.RequestRestart\x1a\x18.process.ResponseRestart\x123\n" +
 	"\x04Logs\x12\x14.process.RequestLogs\x1a\x15.process.ResponseLogs\x12D\n" +
 	"\tWatchLogs\x12\x19.process.RequestWatchLogs\x1a\x1a.process.ResponseWatchLogs0\x01\x129\n" +
-	"\x06Reload\x12\x16.process.RequestReload\x1a\x17.process.ResponseReloadB/Z#go.f110.dev/ProcessManagerBar/proto\x92\x03\a\xd2>\x02\x10\x03\b\x01b\beditionsp\xe9\a"
+	"\x06Reload\x12\x16.process.RequestReload\x1a\x17.process.ResponseReload\x126\n" +
+	"\x05Links\x12\x15.process.RequestLinks\x1a\x16.process.ResponseLinksB/Z#go.f110.dev/ProcessManagerBar/proto\x92\x03\a\xd2>\x02\x10\x03\b\x01b\beditionsp\xe9\a"
 
 var file_proto_process_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_proto_process_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_proto_process_proto_goTypes = []any{
 	(ProcessState)(0),             // 0: process.ProcessState
 	(*Process)(nil),               // 1: process.Process
@@ -1612,34 +1832,40 @@ var file_proto_process_proto_goTypes = []any{
 	(*ResponseWatchStatus)(nil),   // 16: process.ResponseWatchStatus
 	(*RequestReload)(nil),         // 17: process.RequestReload
 	(*ResponseReload)(nil),        // 18: process.ResponseReload
-	(*timestamppb.Timestamp)(nil), // 19: google.protobuf.Timestamp
+	(*Link)(nil),                  // 19: process.Link
+	(*RequestLinks)(nil),          // 20: process.RequestLinks
+	(*ResponseLinks)(nil),         // 21: process.ResponseLinks
+	(*timestamppb.Timestamp)(nil), // 22: google.protobuf.Timestamp
 }
 var file_proto_process_proto_depIdxs = []int32{
-	19, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
+	22, // 0: process.ProcessStatus.started_at:type_name -> google.protobuf.Timestamp
 	0,  // 1: process.ProcessStatus.state:type_name -> process.ProcessState
 	2,  // 2: process.ResponseStatus.processes:type_name -> process.ProcessStatus
 	2,  // 3: process.ResponseWatchStatus.processes:type_name -> process.ProcessStatus
-	3,  // 4: process.ProcessManager.Status:input_type -> process.RequestStatus
-	15, // 5: process.ProcessManager.WatchStatus:input_type -> process.RequestWatchStatus
-	5,  // 6: process.ProcessManager.Start:input_type -> process.RequestStart
-	7,  // 7: process.ProcessManager.Stop:input_type -> process.RequestStop
-	9,  // 8: process.ProcessManager.Restart:input_type -> process.RequestRestart
-	11, // 9: process.ProcessManager.Logs:input_type -> process.RequestLogs
-	13, // 10: process.ProcessManager.WatchLogs:input_type -> process.RequestWatchLogs
-	17, // 11: process.ProcessManager.Reload:input_type -> process.RequestReload
-	4,  // 12: process.ProcessManager.Status:output_type -> process.ResponseStatus
-	16, // 13: process.ProcessManager.WatchStatus:output_type -> process.ResponseWatchStatus
-	6,  // 14: process.ProcessManager.Start:output_type -> process.ResponseStart
-	8,  // 15: process.ProcessManager.Stop:output_type -> process.ResponseStop
-	10, // 16: process.ProcessManager.Restart:output_type -> process.ResponseRestart
-	12, // 17: process.ProcessManager.Logs:output_type -> process.ResponseLogs
-	14, // 18: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
-	18, // 19: process.ProcessManager.Reload:output_type -> process.ResponseReload
-	12, // [12:20] is the sub-list for method output_type
-	4,  // [4:12] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	19, // 4: process.ResponseLinks.links:type_name -> process.Link
+	3,  // 5: process.ProcessManager.Status:input_type -> process.RequestStatus
+	15, // 6: process.ProcessManager.WatchStatus:input_type -> process.RequestWatchStatus
+	5,  // 7: process.ProcessManager.Start:input_type -> process.RequestStart
+	7,  // 8: process.ProcessManager.Stop:input_type -> process.RequestStop
+	9,  // 9: process.ProcessManager.Restart:input_type -> process.RequestRestart
+	11, // 10: process.ProcessManager.Logs:input_type -> process.RequestLogs
+	13, // 11: process.ProcessManager.WatchLogs:input_type -> process.RequestWatchLogs
+	17, // 12: process.ProcessManager.Reload:input_type -> process.RequestReload
+	20, // 13: process.ProcessManager.Links:input_type -> process.RequestLinks
+	4,  // 14: process.ProcessManager.Status:output_type -> process.ResponseStatus
+	16, // 15: process.ProcessManager.WatchStatus:output_type -> process.ResponseWatchStatus
+	6,  // 16: process.ProcessManager.Start:output_type -> process.ResponseStart
+	8,  // 17: process.ProcessManager.Stop:output_type -> process.ResponseStop
+	10, // 18: process.ProcessManager.Restart:output_type -> process.ResponseRestart
+	12, // 19: process.ProcessManager.Logs:output_type -> process.ResponseLogs
+	14, // 20: process.ProcessManager.WatchLogs:output_type -> process.ResponseWatchLogs
+	18, // 21: process.ProcessManager.Reload:output_type -> process.ResponseReload
+	21, // 22: process.ProcessManager.Links:output_type -> process.ResponseLinks
+	14, // [14:23] is the sub-list for method output_type
+	5,  // [5:14] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_proto_process_proto_init() }
@@ -1653,7 +1879,7 @@ func file_proto_process_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_process_proto_rawDesc), len(file_proto_process_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   18,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

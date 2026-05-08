@@ -27,15 +27,24 @@ extension ProcessConfig {
     }
 }
 
+struct LinkConfig: Codable, Identifiable, Equatable {
+    var name: String
+    var url: String
+
+    var id: String { name }
+}
+
 struct Configuration: Codable {
     var processes: [ProcessConfig]?
     var maxLogLines: Int?
     var server: String?
+    var links: [LinkConfig]?
 
     enum CodingKeys: String, CodingKey {
         case processes
         case maxLogLines = "max_log_lines"
         case server
+        case links
     }
 
     static let defaultMaxLogLines = 1000

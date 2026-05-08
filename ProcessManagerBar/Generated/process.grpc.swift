@@ -124,6 +124,19 @@ public enum Process_ProcessManager: Sendable {
                 type: .unary
             )
         }
+        /// Namespace for "Links" metadata.
+        public enum Links: Sendable {
+            /// Request type for "Links".
+            public typealias Input = Process_RequestLinks
+            /// Response type for "Links".
+            public typealias Output = Process_ResponseLinks
+            /// Descriptor for "Links".
+            public static let descriptor = GRPCCore.MethodDescriptor(
+                service: GRPCCore.ServiceDescriptor(fullyQualifiedService: "process.ProcessManager"),
+                method: "Links",
+                type: .unary
+            )
+        }
         /// Descriptors for all methods in the "process.ProcessManager" service.
         public static let descriptors: [GRPCCore.MethodDescriptor] = [
             Status.descriptor,
@@ -133,7 +146,8 @@ public enum Process_ProcessManager: Sendable {
             Restart.descriptor,
             Logs.descriptor,
             WatchLogs.descriptor,
-            Reload.descriptor
+            Reload.descriptor,
+            Links.descriptor
         ]
     }
 }
@@ -303,6 +317,25 @@ extension Process_ProcessManager {
             deserializer: some GRPCCore.MessageDeserializer<Process_ResponseReload>,
             options: GRPCCore.CallOptions,
             onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseReload>) async throws -> Result
+        ) async throws -> Result where Result: Sendable
+
+        /// Call the "Links" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestLinks` message.
+        ///   - serializer: A serializer for `Process_RequestLinks` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseLinks` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        func links<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestLinks>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestLinks>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseLinks>,
+            options: GRPCCore.CallOptions,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseLinks>) async throws -> Result
         ) async throws -> Result where Result: Sendable
     }
 
@@ -557,6 +590,36 @@ extension Process_ProcessManager {
                 onResponse: handleResponse
             )
         }
+
+        /// Call the "Links" method.
+        ///
+        /// - Parameters:
+        ///   - request: A request containing a single `Process_RequestLinks` message.
+        ///   - serializer: A serializer for `Process_RequestLinks` messages.
+        ///   - deserializer: A deserializer for `Process_ResponseLinks` messages.
+        ///   - options: Options to apply to this RPC.
+        ///   - handleResponse: A closure which handles the response, the result of which is
+        ///       returned to the caller. Returning from the closure will cancel the RPC if it
+        ///       hasn't already finished.
+        /// - Returns: The result of `handleResponse`.
+        public func links<Result>(
+            request: GRPCCore.ClientRequest<Process_RequestLinks>,
+            serializer: some GRPCCore.MessageSerializer<Process_RequestLinks>,
+            deserializer: some GRPCCore.MessageDeserializer<Process_ResponseLinks>,
+            options: GRPCCore.CallOptions = .defaults,
+            onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseLinks>) async throws -> Result = { response in
+                try response.message
+            }
+        ) async throws -> Result where Result: Sendable {
+            try await self.client.unary(
+                request: request,
+                descriptor: Process_ProcessManager.Method.Links.descriptor,
+                serializer: serializer,
+                deserializer: deserializer,
+                options: options,
+                onResponse: handleResponse
+            )
+        }
     }
 }
 
@@ -754,6 +817,31 @@ extension Process_ProcessManager.ClientProtocol {
             request: request,
             serializer: GRPCProtobuf.ProtobufSerializer<Process_RequestReload>(),
             deserializer: GRPCProtobuf.ProtobufDeserializer<Process_ResponseReload>(),
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Links" method.
+    ///
+    /// - Parameters:
+    ///   - request: A request containing a single `Process_RequestLinks` message.
+    ///   - options: Options to apply to this RPC.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func links<Result>(
+        request: GRPCCore.ClientRequest<Process_RequestLinks>,
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseLinks>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        try await self.links(
+            request: request,
+            serializer: GRPCProtobuf.ProtobufSerializer<Process_RequestLinks>(),
+            deserializer: GRPCProtobuf.ProtobufDeserializer<Process_ResponseLinks>(),
             options: options,
             onResponse: handleResponse
         )
@@ -985,6 +1073,35 @@ extension Process_ProcessManager.ClientProtocol {
             metadata: metadata
         )
         return try await self.reload(
+            request: request,
+            options: options,
+            onResponse: handleResponse
+        )
+    }
+
+    /// Call the "Links" method.
+    ///
+    /// - Parameters:
+    ///   - message: request message to send.
+    ///   - metadata: Additional metadata to send, defaults to empty.
+    ///   - options: Options to apply to this RPC, defaults to `.defaults`.
+    ///   - handleResponse: A closure which handles the response, the result of which is
+    ///       returned to the caller. Returning from the closure will cancel the RPC if it
+    ///       hasn't already finished.
+    /// - Returns: The result of `handleResponse`.
+    public func links<Result>(
+        _ message: Process_RequestLinks,
+        metadata: GRPCCore.Metadata = [:],
+        options: GRPCCore.CallOptions = .defaults,
+        onResponse handleResponse: @Sendable @escaping (GRPCCore.ClientResponse<Process_ResponseLinks>) async throws -> Result = { response in
+            try response.message
+        }
+    ) async throws -> Result where Result: Sendable {
+        let request = GRPCCore.ClientRequest<Process_RequestLinks>(
+            message: message,
+            metadata: metadata
+        )
+        return try await self.links(
             request: request,
             options: options,
             onResponse: handleResponse

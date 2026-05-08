@@ -25,6 +25,7 @@ processes:
 | `processes` | list | Yes | Managed process definitions |
 | `max_log_lines` | int | No | Maximum number of log lines retained in memory per tab (default: `1000`) |
 | `server` | string | No | gRPC endpoint for [server mode](#server-mode) (`tcp://host:port` or `unix:///path/to/sock`) |
+| `links` | list | No | Quick-launch links shown under the process list. Each entry has `name` and `url`. Clicking opens the URL in the default browser. |
 
 ### Process fields
 
@@ -55,6 +56,12 @@ processes:
     command: ["python", "worker.py"]
     dir: /Users/me/project/worker
     log_file: ~/logs/worker.log
+
+links:
+  - name: API
+    url: http://localhost:8080
+  - name: Admin
+    url: http://localhost:8080/admin
 ```
 
 ## Server mode
@@ -107,4 +114,4 @@ Re-reads the configuration file the daemon was started with and reconciles it ag
 - **Added** entries are registered in stopped state.
 - **Removed** entries are stopped and unregistered.
 
-Top-level fields (`max_log_lines`, `server`) are not re-applied; only the `processes` list is reconciled.
+Top-level fields (`max_log_lines`, `server`, `links`) are not re-applied; only the `processes` list is reconciled.

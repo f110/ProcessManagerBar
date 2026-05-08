@@ -50,6 +50,20 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
 
+            if !supervisor.links.isEmpty {
+                Divider()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+
+                VStack(spacing: 2) {
+                    ForEach(supervisor.links) { link in
+                        LinkRowView(link: link)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+            }
+
             Divider()
                 .padding(.horizontal, 12)
                 .padding(.vertical, 4)
@@ -217,5 +231,44 @@ struct ProcessRowView: View {
         case .needsRestart: return "要再起動"
         case .error(let msg): return msg
         }
+    }
+}
+
+struct LinkRowView: View {
+    let link: LinkConfig
+    @State private var isHovering = false
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "link")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+            Text(link.name)
+                .font(.system(size: 13))
+                .lineLimit(1)
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isHovering ? Color.primary.opacity(0.06) : Color.clear)
+        )
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .onTapGesture {
+            openURL()
+        }
+        .help(link.url)
+    }
+
+    private func openURL() {
+        guard let url = URL(string: link.url) else {
+            AppLogger.shared.log("invalid link URL: \(link.url)")
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 }

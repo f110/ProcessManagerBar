@@ -26,6 +26,7 @@ type Manager struct {
 	mu        sync.RWMutex
 	processes []*managedProcess
 	byName    map[string]*managedProcess
+	links     []config.Link
 	sysLog    *logSink
 
 	statusMu   sync.Mutex
@@ -39,6 +40,7 @@ func NewManager(cfg *config.Configuration, configPath string) *Manager {
 		configPath:  configPath,
 		maxLogLines: cfg.MaxLogLines,
 		byName:      make(map[string]*managedProcess),
+		links:       append([]config.Link(nil), cfg.Links...),
 		sysLog:      newLogSink(cfg.MaxLogLines),
 		statusSubs:  make(map[chan struct{}]struct{}),
 	}
@@ -274,6 +276,22 @@ func (m *Manager) Reload(_ context.Context, _ *proto.RequestReload) (*proto.Resp
 		Changed:   changed,
 		Unchanged: unchanged,
 	}.Build(), nil
+}
+
+func (m *Manager) Links(_ context.Context, _ *proto.RequestLinks) (*proto.ResponseLinks, error) {
+	return proto.ResponseLinks_builder{Links: m.buildLinks()}.Build(), nil
+}
+
+func (m *Manager) buildLinks() []*proto.Link {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	links := make([]*proto.Link, 0, len(m.links))
+	for _, l := range m.links {
+		name := l.Name
+		url := l.URL
+		links = append(links, proto.Link_builder{Name: &name, Url: &url}.Build())
+	}
+	return links
 }
 
 func (m *Manager) Logs(_ context.Context, req *proto.RequestLogs) (*proto.ResponseLogs, error) {

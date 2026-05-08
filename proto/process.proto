@@ -17,6 +17,7 @@ service ProcessManager {
   rpc Logs(RequestLogs) returns (ResponseLogs);
   rpc WatchLogs(RequestWatchLogs) returns (stream ResponseWatchLogs);
   rpc Reload(RequestReload) returns (ResponseReload);
+  rpc Links(RequestLinks) returns (ResponseLinks);
 }
 
 enum ProcessState {
@@ -100,4 +101,15 @@ message ResponseReload {
   repeated string removed = 2;
   repeated string changed = 3;
   repeated string unchanged = 4;
+}
+
+message Link {
+  string name = 1;
+  string url = 2;
+}
+
+message RequestLinks {}
+
+message ResponseLinks {
+  repeated Link links = 1;
 }

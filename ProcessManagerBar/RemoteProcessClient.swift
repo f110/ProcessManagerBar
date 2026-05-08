@@ -100,6 +100,12 @@ final class RemoteProcessClient {
         _ = try await p.restart(req)
     }
 
+    func fetchLinks() async throws -> [LinkConfig] {
+        guard let p = processClient else { return [] }
+        let response = try await p.links(Process_RequestLinks())
+        return response.links.map { LinkConfig(name: $0.name, url: $0.url) }
+    }
+
     func streamStatus(_ handler: @Sendable @escaping ([RemoteProcessStatus]) -> Void) async {
         guard let p = processClient else { return }
         let req = Process_RequestWatchStatus()

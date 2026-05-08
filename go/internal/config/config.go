@@ -17,10 +17,16 @@ type ProcessConfig struct {
 	Watch   bool     `yaml:"watch,omitempty"`
 }
 
+type Link struct {
+	Name string `yaml:"name"`
+	URL  string `yaml:"url"`
+}
+
 type Configuration struct {
 	Processes   []ProcessConfig `yaml:"processes"`
 	MaxLogLines int             `yaml:"max_log_lines,omitempty"`
 	Server      string          `yaml:"server,omitempty"`
+	Links       []Link          `yaml:"links,omitempty"`
 }
 
 func Read(path string) (*Configuration, error) {

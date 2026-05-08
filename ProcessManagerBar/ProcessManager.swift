@@ -497,6 +497,7 @@ class ShellEnvironment {
 
 class ProcessSupervisor: ObservableObject {
     @Published var processes: [ManagedProcess] = []
+    @Published var links: [LinkConfig] = []
     @Published var configFileURL: URL? {
         didSet {
             if let url = configFileURL {
@@ -559,6 +560,8 @@ class ProcessSupervisor: ObservableObject {
             // Local mode: tear down any prior remote state.
             tearDownRemote()
 
+            links = config.links ?? []
+
             let oldProcesses = processes
             let configProcesses = config.processes ?? []
             for proc in oldProcesses {
@@ -596,6 +599,7 @@ class ProcessSupervisor: ObservableObject {
             proc.stop()
         }
         processes = []
+        links = []
         observeProcesses()
 
         tearDownRemote()
@@ -632,6 +636,18 @@ class ProcessSupervisor: ObservableObject {
                 }
                 if Task.isCancelled { return }
                 try? await Task.sleep(for: .seconds(2))
+            }
+        }
+
+        Task { [weak self] in
+            await priorTeardown?.value
+            do {
+                let fetched = try await client.fetchLinks()
+                await MainActor.run { [weak self] in
+                    self?.links = fetched
+                }
+            } catch {
+                AppLogger.shared.log("fetch links failed: \(error)")
             }
         }
     }
