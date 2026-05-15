@@ -156,17 +156,16 @@ struct ProcessRowView: View {
                 .font(.system(size: 13))
                 .lineLimit(1)
             Spacer()
-            Button {
-                process.restart()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-            .buttonStyle(.borderless)
-            .disabled(process.state == .stopped || process.state.isError)
-            .help("再起動")
             if isRunning {
+                Button {
+                    process.restart()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.borderless)
+                .help("再起動")
                 Button {
                     process.stop()
                 } label: {
